@@ -62,27 +62,27 @@ class text_analytics(object):
         
 		#Initialize Style Vectorizer
 		self.style_vectorizer = CountVectorizer(
-						input = "content", 
-						encoding = "utf-8", 
-						decode_error = "replace",
-						ngram_range = (1, 2),
-						preprocessor = self.clean_pre,
-						analyzer = "word",
-						vocabulary = self.function_words,
-						tokenizer = None,
-						)
+			input = "content", 
+			encoding = "utf-8", 
+			decode_error = "replace",
+			ngram_range = (1, 2),
+			preprocessor = self.clean_pre,
+			analyzer = "word",
+			vocabulary = self.function_words,
+			tokenizer = None,
+			)
 
 		#Initialize Sentiment Vectorizer
 		self.sentiment_vectorizer = CountVectorizer(
-						input = "content", 
-						encoding = "utf-8", 
-						decode_error = "replace",
-						ngram_range = (1, 1), 
-						preprocessor = self.clean_pre,
-						analyzer = "word",
-						vocabulary = self.sentiment_words,
-						tokenizer = None,
-						)
+			input = "content", 
+			encoding = "utf-8", 
+			decode_error = "replace",
+			ngram_range = (1, 1), 
+			preprocessor = self.clean_pre,
+			analyzer = "word",
+			vocabulary = self.sentiment_words,
+			tokenizer = None,
+			)
 	
 	#---------------------------------------------------------------------
 	#Go through a dataset to build a content word vocabulary, with TF-IDF weighting
@@ -122,17 +122,17 @@ class text_analytics(object):
 
 		#Initialize TF-IDF Vectorizer
 		self.tfidf_vectorizer = TfidfVectorizer(
-						input = "content", 
-						encoding = "utf-8", 
-						decode_error = "replace",
-						ngram_range = (1, 1),
-						analyzer = self.clean,
-						vocabulary = vocab_list, 
-						norm = "l2", 
-						use_idf = True, 
-						smooth_idf = True,
-						tokenizer = None,
-						)
+			input = "content", 
+			encoding = "utf-8", 
+			decode_error = "replace",
+			ngram_range = (1, 1),
+			analyzer = self.clean,
+			vocabulary = vocab_list, 
+			norm = "l2", 
+			use_idf = True, 
+			smooth_idf = True,
+			tokenizer = None,
+			)
 
 		#Fit on the dataset
 		print("Fitting TF-IDF")
@@ -149,14 +149,14 @@ class text_analytics(object):
 			common_terms = []
 
 		phrases = Phrases(
-						sentences = self.read_clean(df),
-						min_count = min_count, 
-						threshold = 0.70,
-						scoring = "npmi",
-						max_vocab_size = 100000000,
-						delimiter = b"_",
-						common_terms = common_terms
-						)
+					sentences = self.read_clean(df),
+					min_count = min_count, 
+					threshold = 0.70,
+					scoring = "npmi",
+					max_vocab_size = 100000000,
+					delimiter = b"_",
+					common_terms = common_terms
+					)
 
 		#Save the lite version from gensim
 		phrases = Phraser(phrases)
@@ -177,12 +177,12 @@ class text_analytics(object):
 					
 		#Remove punctuation and extra spaces
 		line = ct.pipe(line, 
-						preprocessing.strip_tags, 
-						preprocessing.strip_punctuation, 
-						preprocessing.strip_numeric, 
-						preprocessing.strip_non_alphanum, 
-						preprocessing.strip_multiple_whitespaces
-						)
+				preprocessing.strip_tags, 
+				preprocessing.strip_punctuation, 
+				preprocessing.strip_numeric, 
+				preprocessing.strip_non_alphanum, 
+				preprocessing.strip_multiple_whitespaces
+				)
 		
 		#Strip and lowercase
 		line = line.lower().strip().lstrip()
@@ -203,12 +203,12 @@ class text_analytics(object):
 					
 		#Remove punctuation and extra spaces
 		line = ct.pipe(line, 
-						preprocessing.strip_tags, 
-						preprocessing.strip_punctuation, 
-						preprocessing.strip_numeric, 
-						preprocessing.strip_non_alphanum, 
-						preprocessing.strip_multiple_whitespaces
-						)
+				preprocessing.strip_tags, 
+				preprocessing.strip_punctuation, 
+				preprocessing.strip_numeric, 
+				preprocessing.strip_non_alphanum, 
+				preprocessing.strip_multiple_whitespaces
+				)
 		
 		#Strip and lowercase
 		line = line.lower().strip().lstrip().split()
@@ -246,12 +246,12 @@ class text_analytics(object):
 		if stage > 2:
 			#Remove punctuation and extra spaces
 			line = ct.pipe(line, 
-							preprocessing.strip_tags, 
-							preprocessing.strip_punctuation, 
-							preprocessing.strip_numeric, 
-							preprocessing.strip_non_alphanum, 
-							preprocessing.strip_multiple_whitespaces
-							)
+					preprocessing.strip_tags, 
+					preprocessing.strip_punctuation, 
+					preprocessing.strip_numeric, 
+					preprocessing.strip_non_alphanum, 
+					preprocessing.strip_multiple_whitespaces
+					)
 		
 		if stage > 1:
 			#Strip and lowercase
@@ -332,16 +332,16 @@ class text_analytics(object):
 
 		#Initialize the classifier
 		cls = LinearSVC(
-					penalty = "l2", 
-					loss = "squared_hinge", 
-					dual = True, 
-					tol = 0.0001, 
-					C = 1.0, 
-					multi_class = "ovr", 
-					fit_intercept = True, 
-					intercept_scaling = 1,
-					max_iter = 200000
-					)
+				penalty = "l2", 
+				loss = "squared_hinge", 
+				dual = True, 
+				tol = 0.0001, 
+				C = 1.0, 
+				multi_class = "ovr", 
+				fit_intercept = True, 
+				intercept_scaling = 1,
+				max_iter = 200000
+				)
 
 		#Use training/testing evaluation method
 		if cv == False:
@@ -370,13 +370,13 @@ class text_analytics(object):
 
 			#Run cross-validator
 			scores = cross_validate(
-								estimator = cls, 
-								X = x, 
-								y = df.loc[:,labels].values, 
-								scoring = ["precision_weighted", "recall_weighted", "f1_weighted"], 
-								cv = 10, 
-								return_estimator = False, 
-								)
+						estimator = cls, 
+						X = x, 
+						y = df.loc[:,labels].values, 
+						scoring = ["precision_weighted", "recall_weighted", "f1_weighted"], 
+						cv = 10, 
+						return_estimator = False, 
+						)
 			
 			#Show results; we can't save the classifier because we trained 10 different times
 			print(scores)
@@ -433,12 +433,12 @@ class text_analytics(object):
 			
 		#Now, begin or resume training
 		model.fit(x = train_x.todense(),
-					y = y_train,
-					validation_data = (test_x.todense(), y_test),
-					epochs = 25,
-					use_multiprocessing = True,
-					workers = 5,
-					)
+				y = y_train,
+				validation_data = (test_x.todense(), y_test),
+				epochs = 25,
+				use_multiprocessing = True,
+				workers = 5,
+				)
 		
 		#Reuse testing data if no validation set
 		if validation_set == False:
@@ -488,15 +488,15 @@ class text_analytics(object):
 
 		#Initialize wordcloud package
 		wordcloud = WordCloud(width = 1200, 
-							height = 1200,
-							max_font_size = 75,
-							min_font_size = 10,
-							max_words = 200,
-							background_color = "white",
-							relative_scaling = 0.65,
-							normalize_plurals = False,
-							include_numbers = True,
-							)
+						height = 1200,
+						max_font_size = 75,
+						min_font_size = 10,
+						max_words = 200,
+						background_color = "white",
+						relative_scaling = 0.65,
+						normalize_plurals = False,
+						include_numbers = True,
+						)
 		
 		#Pass pre-made frequencies to wordcloud, allowing for TF-IDF
 		wordcloud.generate_from_frequencies(frequencies = vocab)
