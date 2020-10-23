@@ -25,8 +25,8 @@ setup(
 						"pandas",
 						"scipy",
 						"sklearn",
-						"tensorflow"
-						"spacy"
+						"tensorflow",
+						"spacy",
 						],
 	include_package_data=True,
 	long_description=read('README.md'),
