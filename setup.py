@@ -27,6 +27,8 @@ setup(
 						"sklearn",
 						"tensorflow",
 						"spacy",
+						"wordcloud",
+						"matplotlib",
 						],
 	include_package_data=True,
 	long_description=read('README.md'),
