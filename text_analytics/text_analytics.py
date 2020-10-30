@@ -14,12 +14,13 @@ from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import classification_report
+from sklearn.metrics import adjusted_rand_score
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder
 from sklearn.cluster import KMeans
-from sklearn.neighbors import KDTree
-from sklearn.metrics.pairwise import cosine_similarity
+from scipy.spatial.distance import euclidean
+from scipy.sparse import isspmatrix
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud
 import tensorflow as tf
@@ -28,9 +29,8 @@ import spacy
 #---------------------------------
 def load(file):
 	file = os.path.join("///", "srv", "data", "shared_data_folder", "states", "AI.State." + file + ".pickle")
-	#print(file)
-	with open(file, "rb") as f:
-		ai = pickle.load(f)
+	with open(file, "rb") as fo:
+		ai = pickle.load(fo)
 
 	return ai
 #---------------------------------
@@ -55,6 +55,7 @@ class text_analytics(object):
 					
 		#This is a placeholder for spacy's tagger
 		self.nlp = spacy.load("en_core_web_sm")
+		self.nlp.max_length = 9999999999999
 
 		#Specific paths for the course labs
 		self.data_dir = os.path.join("///", "srv", "data", "shared_data_folder", "data")
@@ -283,9 +284,9 @@ class text_analytics(object):
 	#---------------------------------------------------------------------
 	#Save current state: includes all features and classifiers
 	#---------------------------------------------------------------------
-	def save(self, name):
+	def save(self, name, thing):
 		with open("AI.State." + name + ".pickle", "wb") as f:
-			pickle.dump(self, f)
+			pickle.dump(thing, f)
 
 	#---------------------------------------------------------------------
 	#Extract feature vectors (x)
@@ -520,13 +521,16 @@ class text_analytics(object):
 			plt.show()
 
 	#---------------------------------------------------------------------
-	#Use OPTICS clustering
+	#Use K-Means clustering
 	#---------------------------------------------------------------------
-	def cluster(self, df, labels, features = "style", k = None):
+	def cluster(self, x, y = None, k = None, ari = True):
 
 		#If necessary, set k to the number of unique labels
 		if k == None:
-			k = len(list(set(df.loc[:,labels].values)))
+			if y != None:
+				k = len(list(set(y)))
+			else:
+				k = 10
 			print("Using k = " + str(k))
 		
 		#Initiate KMeans clustering
@@ -539,37 +543,67 @@ class text_analytics(object):
 					copy_x = False, 
 					algorithm = "full"
 					)
-		
-		#Get requested feature type
-		x, vocab_size = self.get_features(df, features = features)
 
 		#Get cluster assignments
 		clustering = cluster.fit_predict(X = x)
 
+		#Set a null y if necessary
+		if y == None:
+			y = [0 for x in range(len(x))]
+
 		#Make a DataFrame showing the label and the cluster assignment
-		cluster_df = pd.DataFrame([df.loc[:,labels].values, clustering]).T
+		cluster_df = pd.DataFrame([y, clustering]).T
 		cluster_df.columns = ["Label", "Cluster"]
 
-		return cluster_df
+		if ari == True:
+			ari = adjusted_rand_score(cluster_df.loc[:,"Label"].values, cluster_df.loc[:,"Cluster"].values)
+			return ari, cluster_df
+
+		else:
+			return cluster_df
 
 	#---------------------------------------------------------------------
 	#Manipulate linguistic distance using a KDTree
 	#---------------------------------------------------------------------
-	def linguistic_distance(self, df, features):
+	def linguistic_distance(self, x, y, sample = 1, n = 1):
 		
-		#Get the features
-		x = self.get_features(df, features = features)
+		#Get the vector that represents our sample
+		x_sample = x[sample]
 
-		#Fit a KD Tree for nearest neighbors
-		ling_distances = KDTree(
-							X = x, 
-							leaf_size = 20, 
-							metric = "euclidean"
-							)
+		#Make sure we're using a dense matrix
+		if isspmatrix(x_sample):
+			x_sample = x_sample.todense()
+		
+		#We get each distance as we go
+		holder = []
 
-		print("KD Tree ready to go")
+		#Compare each vector with the sample
+		for i in range(x.shape[0]):
+			if i != sample:
+				x_test = x[i]
 
-		#ling_dstances.query(, k = 1, return_distance=True)
+				#Make sure we're using a dense matrix
+				if isspmatrix(x_test):
+					x_test = x_test.todense()
+
+				#Calculate distance
+				distance = euclidean(x_sample, x_test)
+				
+				#Add index and distance
+				holder.append([i, distance])
+
+		#Make a dataframe with all distances and sort, smallest to largest
+		distance_df = pd.DataFrame(holder, columns = ["Index", "Distance"])
+		distance_df.sort_values(by = "Distance", axis = 0, ascending = True, inplace = True)
+
+		#Reduce to desired number of comparisons
+		distance_df = distance_df.head(n)
+
+		#Get the labels for the sample and the closest document
+		y_sample = y[sample]
+		y_closest = [y[x] for x in distance_df.loc[:,"Index"].values]
+
+		return y_sample, y_closest
 
 	#---------------------------------------------------------------------
 	#Learn a word2vec embeddings from input data using gensim
@@ -600,11 +634,9 @@ class text_analytics(object):
 		vocab = embeddings.wv.vocab
 		print(word_vectors.shape)
 
-		self.word_vectors = word_vectors
-		self.word_vectors_vocab = vocab
-
 		#Save to class
 		self.word_vectors = word_vectors
+		self.word_vectors_vocab = vocab
 
 	#---------------------------------------------------------------------
 	#Learn an LDA topic model from input data using gensim
@@ -634,13 +666,34 @@ class text_analytics(object):
 	#---------------------------------------------------------------------
 	#Get a fixed minimum frequency threshold based on the size of the current data set
 	#---------------------------------------------------------------------
-	def use_lda(self, df):
+	def use_lda(self, df, labels):
 
+		#Get the gensim representation
 		corpus = [self.lda_dictionary.doc2bow(text) for text in self.read_clean(df)]
 		
-		for doc in corpus:
-			vector = self.lda[doc]
-			print(vector)
+		#Get labels
+		y = df.loc[:,labels].values
+
+		#For storing topic results
+		holder = []
+
+		#Process each sample
+		for i in range(len(corpus)):
+			vector = self.lda[corpus[i]]
+			label = y[i]
+			main = 0.0
+			main_index = 0
+
+			#Find most relevant topic
+			for cluster, val in vector:
+				if val > main:
+					main_index = cluster
+					main = val
+			
+			holder.append([i, label, main_index])
+
+		topic_df = pd.DataFrame(holder, columns = ["Index", "Class", "Topic"])
+		return topic_df
 
 	#---------------------------------------------------------------------
 	#Get a fixed minimum frequency threshold based on the size of the current data set
