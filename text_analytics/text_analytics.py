@@ -142,7 +142,7 @@ class text_analytics(object):
 	#---------------------------------------------------------------------
 	#Use PMI to learn what phrases and collocations should be treated as one word
 	#---------------------------------------------------------------------
-	def fit_phrases(self, df, min_count, non_eng = False):
+	def fit_phrases(self, df, min_count = 100, non_eng = False):
 
 		if non_eng == False:
 			common_terms = self.function_words_single
@@ -523,11 +523,11 @@ class text_analytics(object):
 	#---------------------------------------------------------------------
 	#Use K-Means clustering
 	#---------------------------------------------------------------------
-	def cluster(self, x, y = None, k = None, ari = True):
+	def cluster(self, x, y = "Missing", k = None, ari = True):
 
 		#If necessary, set k to the number of unique labels
 		if k == None:
-			if y != None:
+			if y != "Missing":
 				k = len(list(set(y)))
 			else:
 				k = 10
@@ -548,7 +548,7 @@ class text_analytics(object):
 		clustering = cluster.fit_predict(X = x)
 
 		#Set a null y if necessary
-		if y == None:
+		if y == "Missing":
 			y = [0 for x in range(len(x))]
 
 		#Make a DataFrame showing the label and the cluster assignment
@@ -730,3 +730,62 @@ class text_analytics(object):
 		columns = [k for k, v in sorted(vectorizer.vocabulary_.items(), key=lambda item: item[1])]
 		vector = pd.DataFrame(vector.todense()[0], columns = columns).T
 		return vector
+	
+	#---------------------------------------------------------------------
+	#Transform a sparse vector into a series with word labels
+	#---------------------------------------------------------------------
+	def unmasking(self, df, labels, features):
+		
+		#Split into train/test
+		train_df, test_df = train_test_split(df, test_size = 0.10)
+
+		#Get features
+		train_x, vocab_size = self.get_features(train_df, features = features)
+		test_x, vocab_size = self.get_features(test_df, features = features)
+
+		#Make dense feature vectors
+		train_x = pd.DataFrame(train_x.todense())
+		test_x = pd.DataFrame(test_x.todense())
+		print(len(train_x.columns))
+
+		#Iterate over 100 rounds of feature pruning
+		for i in range(0,100):
+			
+			#Initialize the classifier
+			cls = LinearSVC(
+					penalty = "l2", 
+					loss = "squared_hinge", 
+					dual = True, 
+					tol= 0.0001, 
+					C = 1.0, 
+					multi_class = "ovr", 
+					fit_intercept = True, 
+					intercept_scaling = 1,
+					max_iter = 200000
+					)
+				
+			#Train and save classifier
+			cls.fit(X = train_x, y = train_df.loc[:,labels].values)
+				
+			#Evaluate on test data
+			predictions = cls.predict(test_x)
+			report = classification_report(y_true = test_df.loc[:,labels].values, y_pred = predictions)
+			print(report)
+
+			#The features to drop
+			to_drop = []
+				
+			#Get most predictive features
+			weights = pd.DataFrame(cls.coef_)
+			
+			#Look for highest feature for each class
+			for index, row in weights.iterrows():
+
+				max_index = row.idxmax()
+				max_index = train_x.columns[max_index]
+				to_drop.append(max_index)
+			
+			#Now remove features and start again
+			train_x.drop(columns = to_drop, inplace = True)
+			test_x.drop(columns = to_drop, inplace = True)
+			print(len(train_x.columns))
