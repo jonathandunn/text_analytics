@@ -331,6 +331,9 @@ class text_analytics(object):
 	#---------------------------------------------------------------------
 	def svm(self, df, labels, features = "style", cv = False):
 
+		report = None
+		scores = None
+
 		#Initialize the classifier
 		cls = LinearSVC(
 				penalty = "l2", 
@@ -362,6 +365,7 @@ class text_analytics(object):
 			predictions = cls.predict(test_x)
 			report = classification_report(y_true = test_df.loc[:,labels].values, y_pred = predictions)
 			print(report)
+			return report
 
 		#Use 10-fold cross-validation for evaluation method
 		elif cv == True:
@@ -383,6 +387,7 @@ class text_analytics(object):
 			print(scores)
 			return scores
 		
+		return scores, report
 	#---------------------------------------------------------------------
 	#Train and test a Multi-Layer Perceptron classifier
 	#---------------------------------------------------------------------
