@@ -381,6 +381,7 @@ class text_analytics(object):
 			
 			#Show results; we can't save the classifier because we trained 10 different times
 			print(scores)
+			return scores
 		
 	#---------------------------------------------------------------------
 	#Train and test a Multi-Layer Perceptron classifier
