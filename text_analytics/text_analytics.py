@@ -529,24 +529,28 @@ class text_analytics(object):
 			model = tf.keras.Sequential()
 
 			#Create a tensorflow layer from our word2vec embeddings
-			embedding_layer = tf.keras.layers.Embedding(input_dim = ai.word_vectors.shape[0], 
-													output_dim = ai.word_vectors.shape[1],
-													weights = [ai.word_vectors],
-													input_length = ai.max_size,
+			embedding_layer = tf.keras.layers.Embedding(input_dim = self.word_vectors.shape[0], 
+													output_dim = self.word_vectors.shape[1],
+													weights = [self.word_vectors],
+													input_length = self.max_size,
 													)
 
 			#Add embedding layer as first layer in model
 			model.add(embedding_layer)
-
+			
 			#The embedding layer needs to be flattened to fit into an MLP
 			model.add(tf.keras.layers.Flatten())
 
-			#One or more dense layers.
-			for units in [1500, 1000, 500]:
+			#One or more dense layers
+			for units in [500, 500, 500]:
 				add_layer = tf.keras.layers.Dense(units, activation = "relu")
 				model.add(add_layer)
+				
+			#Drop out layer, avoid over-fitting
+			dropout_layer = tf.keras.layers.Dropout(0.2)
+			model.add(dropout_layer)
 
-			#Output layer. The first argument is the number of labels.
+			#Output layer. The first argument is the number of labels
 			output_layer = tf.keras.layers.Dense(1, activation = "sigmoid")
 			model.add(output_layer)
 
@@ -768,6 +772,7 @@ class text_analytics(object):
 		common_dictionary.filter_extremes(no_below = min_count)
 		remove_ids = [common_dictionary.token2id[x] for x in self.function_words_single if x in common_dictionary.token2id]
 
+		#Filter out words we don't want
 		common_dictionary.filter_tokens(bad_ids = remove_ids)
 		common_corpus = [common_dictionary.doc2bow(text) for text in self.read_clean(df)]
 
