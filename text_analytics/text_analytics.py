@@ -647,9 +647,9 @@ class text_analytics(object):
 
 		#If necessary, set k to the number of unique labels
 		if k == None:
-			if y != "Missing":
+			try:
 				k = len(list(set(y)))
-			else:
+			except:
 				k = 10
 			print("Using k = " + str(k))
 		
@@ -668,8 +668,11 @@ class text_analytics(object):
 		clustering = cluster.fit_predict(X = x)
 
 		#Set a null y if necessary
-		if y == "Missing":
-			y = [0 for x in range(len(x))]
+		try:
+			print(y.shape)
+		except:
+			if y == "Missing":
+				y = [0 for x in range(len(x))]
 
 		#Make a DataFrame showing the label and the cluster assignment
 		cluster_df = pd.DataFrame([y, clustering]).T
