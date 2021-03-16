@@ -585,7 +585,7 @@ class text_analytics(object):
 	#---------------------------------------------------------------------
 	#Build wordclouds and choose what features to use
 	#---------------------------------------------------------------------
-	def wordclouds(self, df, stage = 0, features = "frequency", name = None):
+	def wordclouds(self, df, stage = 0, features = "frequency", name = None, stopwords = None):
 
 		#If only using frequency, use a pure Python method
 		if features == "frequency":
@@ -606,6 +606,11 @@ class text_analytics(object):
 			vocab = pd.DataFrame(vocab, columns = columns).T
 			vocab = vocab.to_dict()
 			vocab = vocab[0]
+			
+		#Remove defined stopwords
+		if stopwords != None:
+			is_stop =lambda x: x not in stopwords
+			vocab = ct.keyfilter(is_stop, vocab)
 
 		#Initialize wordcloud package
 		wordcloud = WordCloud(width = 1200, 
