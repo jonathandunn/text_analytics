@@ -410,7 +410,9 @@ class text_analytics(object):
 		labeler = LabelEncoder()
 		y_train = labeler.fit_transform(train_df.loc[:,labels].values)
 		y_test = labeler.transform(test_df.loc[:,labels].values)
-		y_val = labeler.transform(val_df.loc[:,labels].values)
+		
+		if validation_set == True:
+			y_val = labeler.transform(val_df.loc[:,labels].values)
 
 		#Get y_val if necessary
 		if validation_set == False:
@@ -432,7 +434,7 @@ class text_analytics(object):
 			model.add(tf.keras.layers.Dense(units, activation = "relu"))
 
 		#Output layer. The first argument is the number of labels.
-		model.add(tf.keras.layers.Dense(n_labels))
+		model.add(tf.keras.layers.Dense(n_labels, activation = "softmax"))
 			
 		#Compile model
 		model.compile(optimizer = "adam",
