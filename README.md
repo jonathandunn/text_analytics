@@ -2,6 +2,8 @@
 Basic text analytics and natural language processing in Python
 
     pip install textanalytics
+    
+    pip install git+https://github.com/jonathandunn/text_analytics.git
 
 This package provides code to support introductory courses in text analytics or natural language processing. These courses are available free on edX:
 
