@@ -261,9 +261,7 @@ class ExternalFileLoader(object):
                 raise Exception('Could not get CHECKSUM for file {}'.format(filename))
             self._checksum_request(filename, checksum, 'create_hmac')
 
-        client = boto3.client('s3',
-                              aws_access_key_id='AKIA54F2WL4ADAFGYK63',
-                              aws_secret_access_key='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')
+        client = boto3.client('s3')
 
         response = client.put_object(
             Body=self.get_file_path(filename, file_type),
