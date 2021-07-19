@@ -1,3 +1,4 @@
+from text_analytics.settings import Settings
 from gensim.parsing import preprocessing
 from collections import defaultdict
 import cleantext
@@ -6,11 +7,6 @@ import cytoolz as ct
 import re
 import json
 import spacy
-
-try:
-    from settings import Settings
-except:
-    from .settings import Settings
 
 #Initialize the settings module
 settings = Settings()

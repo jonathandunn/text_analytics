@@ -1,7 +1,7 @@
 #General imports
-from collections import defaultdict
-import warnings
-warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
+from text_analytics.helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
+from text_analytics.loader import ExternalFileLoader
+from text_analytics.settings import Settings
 from gensim.corpora import Dictionary
 from gensim.models.phrases import Phrases, FrozenPhrases
 from gensim.models import Word2Vec
@@ -21,7 +21,7 @@ from scipy.sparse import isspmatrix
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud
 from stop_words import safe_get_stop_words
-
+from collections import defaultdict
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -29,23 +29,9 @@ import cytoolz as ct
 import pickle
 import logging
 import sys
+import warnings
+warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
 
-#Package-internal imports
-try:
-    from helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
-except:
-    from .helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
-
-try:
-    from loader import ExternalFileLoader
-except:
-    from .loader import ExternalFileLoader
-
-try:
-    from settings import Settings
-except:
-    from .settings import Settings
-    
 settings = Settings()
 
 # TODO: Set logging for educational purposes.
