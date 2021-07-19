@@ -1,4 +1,3 @@
-from text_analytics.helpers import NumpyEncoder
 from gensim.models.keyedvectors import CompatVocab
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.corpora.dictionary import Dictionary
@@ -8,6 +7,10 @@ import numpy as np
 import json
 import pickle
 
+try:
+    from helpers import NumpyEncoder
+except:
+    from .helpers import NumpyEncoder
 
 class BaseSerializer:
 

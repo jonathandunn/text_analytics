@@ -1,11 +1,26 @@
-from text_analytics.serializers import W2vVocabSerializer, LdaDictionarySerializer, TfIdfSerializer
-from text_analytics.helpers import read_clean, clean
-from text_analytics.settings import *
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.models.phrases import Phrases
 import pandas as pd
 import pickle
 import unittest
+
+try:
+    from serializers import W2vVocabSerializer, LdaDictionarySerializer, TfIdfSerializer
+except:
+    from .serializers import W2vVocabSerializer, LdaDictionarySerializer, TfIdfSerializer
+    
+try:
+    from helpers import read_clean, clean
+except:
+    from .helpers import read_clean, clean
+
+try:
+    from settings import Settings
+except:
+    from .settings import Settings
+    
+#Initialize settings module
+settings = Settings()
 
 def read(df, column="Text"):
     return [str(x) for x in df.loc[:, column].values]

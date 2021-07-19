@@ -1,5 +1,3 @@
-from text_analytics.settings import *
-from text_analytics.serializers import SERIALIZERS
 from tqdm import tqdm
 from urllib.parse import urlparse
 import pandas as pd
@@ -8,6 +6,21 @@ import os
 import boto3
 import hashlib
 
+try:
+    from settings import Settings
+except:
+    from .settings import Settings
+    
+try:
+    from serializers import SERIALIZERS
+    from serializers import *
+except:
+    from .serializers import SERIALIZERS
+    from .serializers import *
+    
+
+#Initialize settings module
+settings = Settings()
 
 class ExternalFileLoader(object):
     """
@@ -18,12 +31,12 @@ class ExternalFileLoader(object):
     data_dir = None
 
     def __init__(self, **kwargs):
-        self.data_url = DATA_BUCKET
-        self.state_url = STATE_BUCKET
+        self.data_url = settings.DATA_BUCKET
+        self.state_url = settings.STATE_BUCKET
         self.data_dir = self._get_dir(kwargs.get('data_dir') if kwargs.get('data_dir') else DATA_DIR)
         self.state_dir = self._get_dir(kwargs.get('states_dir') if kwargs.get('states_dir') else STATES_DIR)
 
-        self.checksum_base_url = CHECKSUM_BASE_URL
+        self.checksum_base_url = settings.CHECKSUM_BASE_URL
 
     @staticmethod
     def _get_dir(directory):

@@ -1,28 +1,21 @@
-from text_analytics.settings import *
 from gensim.parsing import preprocessing
 from collections import defaultdict
+import cleantext
 import numpy as np
 import cytoolz as ct
 import re
 import json
 import spacy
 
+try:
+    from settings import Settings
+except:
+    from .settings import Settings
 
-def clean_web(line):
-    """
-    Cleans web info from corpus
-    :param line:
-    :return:
-    """
-    line = re.sub(r"http\S+", "", line)
-    line = re.sub(r"@\S+", "", line)
-    line = re.sub(r"#\S+", "", line)
-    line = re.sub("<[^>]*>", "", line)
-    line = line.replace(" RT", "").replace("RT ", "")
-    return line
+#Initialize the settings module
+settings = Settings()
 
-
-def clean(line, phraser=None, nlp=None):
+def clean(line, phraser=None, nlp=None, stop = None):
     """
     Pre-processing function that splits words, gets phrases, removes stopwords
     :param line:
@@ -30,12 +23,27 @@ def clean(line, phraser=None, nlp=None):
     :param nlp:
     :return:
     """
-    line = clean_web(line)
-
-    line = remove_punctuation(line)
-
-    # Strip and lowercase
-    line = line.lower().strip().lstrip().split()
+   #Use clean-text
+    line = cleantext.clean(line,
+                    fix_unicode = True,
+                    to_ascii = False,
+                    lower = True,
+                    no_line_breaks = True,
+                    no_urls = True,
+                    no_emails = True,
+                    no_phone_numbers = True,
+                    no_numbers = True,
+                    no_digits = True,
+                    no_currency_symbols = True,
+                    no_punct = True,
+                    replace_with_punct = "",
+                    replace_with_url = "<URL>",
+                    replace_with_email = "<EMAIL>",
+                    replace_with_phone_number = "<PHONE>",
+                    replace_with_number = "<NUMBER>",
+                    replace_with_digit = "0",
+                    replace_with_currency_symbol = "<CUR>"
+                    ).split()
 
     # If we've used PMI to find phrases, get those phrases now
     if phraser is not None:

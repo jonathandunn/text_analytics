@@ -1,7 +1,7 @@
-from text_analytics.helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
-from text_analytics.loader import ExternalFileLoader
-from text_analytics import settings
+#General imports
 from collections import defaultdict
+import warnings
+warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
 from gensim.corpora import Dictionary
 from gensim.models.phrases import Phrases, FrozenPhrases
 from gensim.models import Word2Vec
@@ -21,6 +21,7 @@ from scipy.sparse import isspmatrix
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud
 from stop_words import safe_get_stop_words
+
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -29,6 +30,24 @@ import pickle
 import logging
 import sys
 
+#Package-internal imports
+try:
+    from helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
+except:
+    from .helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
+
+try:
+    from loader import ExternalFileLoader
+except:
+    from .loader import ExternalFileLoader
+
+try:
+    from settings import Settings
+except:
+    from .settings import Settings
+    
+settings = Settings()
+
 # TODO: Set logging for educational purposes.
 ai_logger = logging.getLogger()
 ai_logger.setLevel(logging.DEBUG)
@@ -36,7 +55,7 @@ stdout_handler = logging.StreamHandler(sys.stdout)
 ai_logger.addHandler(stdout_handler)
 
 
-class text_analytics:  # TODO: Should we rename class to TextAnalytics to make use of CamelCase convention?
+class TextAnalytics:
     """Class to centralize the functions used in the course"""
 
     max_size = 200
@@ -69,6 +88,7 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         self.states_dir = kwargs.get('states_dir') if kwargs.get('states_dir') else settings.STATES_DIR
 
         self.loader = ExternalFileLoader(data_dir=self.data_dir, states_dir=self.states_dir)
+        self.settings = Settings()
 
     def _get_vectotorizer(self, ngrams):
         return CountVectorizer(
@@ -275,7 +295,6 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         Go through a dataset to build a content word vocabulary, with TF-IDF weighting
         :param df:
         :param min_count:
-        :param force_phrases:
         :param language:
         :return:
         """
@@ -315,19 +334,16 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         else:
             common_terms = safe_get_stop_words(language)
 
-        cleaned_df = read_clean(df)
-
         phrases = Phrases(
-            sentences=cleaned_df,
+            sentences=read_clean(df),
             min_count=min_count,
             threshold=0.70,
             scoring="npmi",
             max_vocab_size=100000000,
-            delimiter=b"_",
-            # TODO: This is rising an exception in new lib version, check?
-            common_terms=common_terms
+            delimiter="_",
+            connector_words=common_terms
         )
-        self.phrases = FrozenPhrases(phrases)
+        self.phrases = phrases.freeze()
 
     def fit_phrases(self, df, min_count=100, language='en', force=False):
         """
@@ -335,7 +351,8 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         :param df:
         :param min_count:
         :param language:
-        :param force:
+        :param save:
+        :param filename:
         :return:
         """
         if not self.phrases or force:
@@ -419,6 +436,7 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         :param df:
         :param labels:
         :param features:
+        :param x: For testing purposes.
         :param validation_set:
         :param test_size:
         :return:
@@ -586,7 +604,7 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
 
         # Find the number of classes
         # TODO: This variable is never used, what do we do?
-        # n_labels = len(list(set(df.loc[:, labels].values)))
+        n_labels = len(list(set(df.loc[:, labels].values)))
 
         # If there's no model already, make one
         if not model:
@@ -669,6 +687,7 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
                          tol=0.0001,
                          copy_x=False,
                          algorithm="full")
+
 
         # Get cluster assignments
         clustering = cluster.fit_predict(X=x)
@@ -754,15 +773,16 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
             min_count = self.get_min_count(df)
 
         # If we haven' t learned phrases yet, do that now
-        # TODO: WHy is this commented?
-        # fit_phrases(self, df, min_count, non_eng=False
+        fit_phrases(self, df, min_count, non_eng=False)
 
         # Learn the word embeddings
         embeddings = Word2Vec(
             sentences=read_clean(df, nlp=self._nlp),
             vector_size=100,
-            sg=0,
-            window=5,
+            sg=1,
+            window=4,
+            hs=0,
+            negative=20,
             min_count=min_count,
             workers=10
         )
