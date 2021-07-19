@@ -80,7 +80,19 @@ def read_clean(df, nlp=None, column="Text"):
     :return:
     """
     return [clean(str(x), nlp=nlp) for x in df.loc[:, column].values]
+    
+def stream_clean(df, nlp=None, column="Text"):
+    """
+    Yields a list of cleaned strings from the dataframe; avoids holding everything in memory
 
+    :param df:
+    :param nlp:
+    :param column:
+    :return:
+    """
+    for line in df.loc[:, column].values:
+        line = clean(str(line), nlp=nlp)
+        yield line
 
 def clean_pre(line):
     """
@@ -206,8 +218,8 @@ def get_vocab(df):
     :return:
     """
     vocab = defaultdict(int)
-    cleaned_df = read_clean(df)
-    for line in cleaned_df:
+
+    for line in stream_clean(df):
         for word in line:
             vocab[word] += 1
     return vocab

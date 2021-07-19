@@ -32,9 +32,9 @@ import sys
 
 #Package-internal imports
 try:
-    from helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
+    from helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab, stream_clean
 except:
-    from .helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
+    from .helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab, stream_clean
 
 try:
     from loader import ExternalFileLoader
@@ -338,7 +338,7 @@ class TextAnalytics:
             common_terms = safe_get_stop_words(language)
 
         phrases = Phrases(
-            sentences=read_clean(df),
+            sentences=stream_clean(df),
             min_count=min_count,
             threshold=0.70,
             scoring="npmi",
