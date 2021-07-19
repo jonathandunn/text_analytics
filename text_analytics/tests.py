@@ -1,16 +1,16 @@
-from loader import ExternalFileLoader
+from text_analytics.loader import ExternalFileLoader
+from text_analytics.settings import *
 from pandas.core.frame import DataFrame
 from gensim.models.phrases import FrozenPhrases
 from unittest import mock
 import unittest
-from settings import *
 import shutil
 
 
 class ExternalFilePath(unittest.TestCase):
     def setUp(self):
         self.loader = ExternalFileLoader()
-        shutil.copy('mocks/test_file.csv', 'states/test_file2.csv')
+        shutil.copy('tests/test_file.csv', 'states/test_file2.csv')
 
     def test_get_dir(self):
         directory = 'test'

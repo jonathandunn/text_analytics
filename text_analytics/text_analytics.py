@@ -1,4 +1,6 @@
-from helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
+from text_analytics.helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab
+from text_analytics.loader import ExternalFileLoader
+from text_analytics import settings
 from collections import defaultdict
 from gensim.corpora import Dictionary
 from gensim.models.phrases import Phrases, FrozenPhrases
@@ -19,8 +21,6 @@ from scipy.sparse import isspmatrix
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud
 from stop_words import safe_get_stop_words
-from loader import ExternalFileLoader
-import settings
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -275,6 +275,7 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         Go through a dataset to build a content word vocabulary, with TF-IDF weighting
         :param df:
         :param min_count:
+        :param force_phrases:
         :param language:
         :return:
         """
@@ -334,8 +335,7 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         :param df:
         :param min_count:
         :param language:
-        :param save:
-        :param filename:
+        :param force:
         :return:
         """
         if not self.phrases or force:
@@ -419,7 +419,6 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
         :param df:
         :param labels:
         :param features:
-        :param x: For testing purposes.
         :param validation_set:
         :param test_size:
         :return:
@@ -587,7 +586,7 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
 
         # Find the number of classes
         # TODO: This variable is never used, what do we do?
-        n_labels = len(list(set(df.loc[:, labels].values)))
+        # n_labels = len(list(set(df.loc[:, labels].values)))
 
         # If there's no model already, make one
         if not model:
@@ -670,7 +669,6 @@ class text_analytics:  # TODO: Should we rename class to TextAnalytics to make u
                          tol=0.0001,
                          copy_x=False,
                          algorithm="full")
-
 
         # Get cluster assignments
         clustering = cluster.fit_predict(X=x)

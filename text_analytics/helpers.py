@@ -1,6 +1,6 @@
+from text_analytics.settings import *
 from gensim.parsing import preprocessing
 from collections import defaultdict
-from settings import *
 import numpy as np
 import cytoolz as ct
 import re

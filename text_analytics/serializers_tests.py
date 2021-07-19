@@ -1,8 +1,8 @@
+from text_analytics.serializers import W2vVocabSerializer, LdaDictionarySerializer, TfIdfSerializer
+from text_analytics.helpers import read_clean, clean
+from text_analytics.settings import *
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.models.phrases import Phrases
-from serializers import W2vVocabSerializer, LdaDictionarySerializer, TfIdfSerializer
-from helpers import read_clean, clean
-from settings import *
 import pandas as pd
 import pickle
 import unittest

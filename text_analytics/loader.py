@@ -1,5 +1,5 @@
-from settings import *
-from serializers import SERIALIZERS
+from text_analytics.settings import *
+from text_analytics.serializers import SERIALIZERS
 from tqdm import tqdm
 from urllib.parse import urlparse
 import pandas as pd

@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name="text_analytics",
-    version="1.0",
+    version="1.0.1",
     author="Jonathan Dunn",
     author_email="jonathan.dunn@canterbury.ac.nz",
     description="Basic text analytics and natural language processing in Python",

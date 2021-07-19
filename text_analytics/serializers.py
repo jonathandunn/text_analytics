@@ -1,9 +1,9 @@
+from text_analytics.helpers import NumpyEncoder
 from gensim.models.keyedvectors import CompatVocab
 from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.corpora.dictionary import Dictionary
 from gensim.test.utils import get_tmpfile
 import scipy.sparse as sp
-from helpers import NumpyEncoder
 import numpy as np
 import json
 import pickle
