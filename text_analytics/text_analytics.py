@@ -146,7 +146,7 @@ class TextAnalytics:
                                         )
         return self._wordcloud
 
-    def _get_vocab_list(self, df, min_count, language):
+    def _get_vocab_list(self, df, min_count, language, return_freq = False):
         """
         Gets vocab list
         :param df:
@@ -157,6 +157,9 @@ class TextAnalytics:
         vocab = get_vocab(df)
 
         vocab_list = []
+        
+        if return_freq == True:
+            return vocab
 
         if language == 'en':
             for word in vocab:

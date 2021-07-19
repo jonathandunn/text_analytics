@@ -15,6 +15,19 @@ except:
 #Initialize the settings module
 settings = Settings()
 
+def clean_web(line):
+    """
+    Cleans web info from corpus
+    :param line:
+    :return:
+    """
+    line = re.sub(r"http\S+", "", line)
+    line = re.sub(r"@\S+", "", line)
+    line = re.sub(r"#\S+", "", line)
+    line = re.sub("<[^>]*>", "", line)
+    line = line.replace(" RT", "").replace("RT ", "")
+    return line
+
 def clean(line, phraser=None, nlp=None, stop = None):
     """
     Pre-processing function that splits words, gets phrases, removes stopwords
