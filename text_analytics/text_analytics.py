@@ -21,7 +21,7 @@ from scipy.sparse import isspmatrix
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud
 from stop_words import safe_get_stop_words
-
+import spacy
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -342,7 +342,7 @@ class TextAnalytics:
             min_count=min_count,
             threshold=0.70,
             scoring="npmi",
-            max_vocab_size=100000000,
+            max_vocab_size=10000000,
             delimiter="_",
             connector_words=common_terms
         )
@@ -762,7 +762,7 @@ class TextAnalytics:
 
         return y_sample, y_closest
 
-    def train_word2vec(self, df, min_count=None):
+    def train_word2vec(self, df, min_count=None, workers=10, language='en'):
         """
         Learn a word2vec embeddings from input data using gensim
 
@@ -776,25 +776,33 @@ class TextAnalytics:
             min_count = self.get_min_count(df)
 
         # If we haven' t learned phrases yet, do that now
-        fit_phrases(self, df, min_count, non_eng=False)
+        self.fit_phrases(df=df, min_count=min_count, language=language)
+        
+         # This is a placeholder for spacy's tagger
+        nlp = spacy.load("en_core_web_sm")
+        nlp.max_length = 99999999
 
         # Learn the word embeddings
         embeddings = Word2Vec(
-            sentences=read_clean(df, nlp=self._nlp),
+            sentences=read_clean(df, nlp=nlp),
             vector_size=100,
             sg=1,
             window=4,
             hs=0,
             negative=20,
             min_count=min_count,
-            workers=10
+            epochs=10,
+            workers=workers,
+            max_vocab_size=10000000,
         )
 
         # Keep just the keyed vectors
         ai_logger.debug("Finished training")
-        word_vectors = embeddings.wv
-        word_vectors = word_vectors.syn0
-        vocab = embeddings.wv.vocab
+        word_vectors = embeddings.wv.get_normed_vectors()
+        print(word_vectors)
+
+        vocab = embeddings.wv.key_to_index
+        print(vocab)
         ai_logger.debug(word_vectors.shape)
 
         # Save to class
