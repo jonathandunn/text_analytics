@@ -121,18 +121,24 @@ def stream_clean(df, phraser=None, stop=None, nlp=None, column="Text", workers=4
     :param workers:
     :return:
     """
+    if nlp is not None:
+        nlp = spacy.load("en_core_web_sm")
+        nlp.max_length = 99999999
     
     #In case we pass a filename instead of a loaded dataframe
     if isinstance(df, str):
         for temp_df in pd.read_csv(df, iterator=True, chunksize=1000):
             print(temp_df)
-            pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
-            lines = pool_instance.map(partial(process_stream, phraser=phraser, stop=stop, nlp=nlp), temp_df.loc[:, column].values, chunksize = 25)
-            pool_instance.close()
-            pool_instance.join()
+            for line in temp_df.loc[:,column].values:
+                yield clean(line, phraser=phraser, stop=stop, nlp=nlp)
             
-            for line in lines:
-                yield line
+            # pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+            # lines = pool_instance.map(partial(process_stream, phraser=phraser, stop=stop, nlp=nlp), temp_df.loc[:, column].values, chunksize = 25)
+            # pool_instance.close()
+            # pool_instance.join()
+            
+            # for line in lines:
+                # yield line
         
     #In case we pass a dataframe
     else:
