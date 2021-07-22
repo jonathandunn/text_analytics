@@ -22,13 +22,13 @@ This package provides code to support introductory courses in computational ling
 
 	style, vocab_size = ai.get_features(df, features="style")
 	
-	*style* = Function word n-grams
+*style* = Function word n-grams
 	
-	*sentiment* = Positive and negative words
+*sentiment* = Positive and negative words
 	
-	*content* = Top content words with TD-IDF weighting, PMI for finding phrases, no stop words
+*content* = Top content words with TD-IDF weighting, PMI for finding phrases, no stop words
 	
-	*constructions* = A bag-of-constructions syntactic representation
+*constructions* = A bag-of-constructions syntactic representation
 	
 ## Using a classifier
 
@@ -36,42 +36,40 @@ This package provides code to support introductory courses in computational ling
 	
 	ai.mlp(df, label, features="style", validation_set=False, test_size=0.10)
 	
-#Unsupervised methods
+##Unsupervised methods
 
-	*Topic Models*
+*Topic Models*
 
 	ai.train_lda(df, n_topics, min_count)
         
     topic_df = ai.use_lda(df, labels="Author")
 	
-	*Vector Semantics*
+*Vector Semantics*
 	
 	ai.train_word2vec(file, min_count, workers)
 	
-	*Document and Word Clusters*
+*Document and Word Clusters*
 	
 	cluster_df = ai.cluster(x, y=None, k)
 	
-	*Nearest document searches
+*Nearest document searches
 	
 	 y_sample, y_closest = ai.linguistic_distance(x, y, sample=1, n=3)
 	 
-#Corpus Descriptions
+##Corpus Descriptions
 
-	*PMI-based Phrases*
+*PMI-based Phrases*
 	
 	ai.fit_phrases(df)
 	 
-	*Delta P-based Phrases*
+*Delta P-based Phrases*
 	 
 	association_df = ai.get_association(df, min_count = 1, save_phraser = True)
 	 
-	*Basic word frequencies*
+*Basic word frequencies*
 	 
 	vocab = ai._get_vocab_list(df, min_count, return_freq = True)
 	 
-	*Corpus Comparisons*
+*Corpus Comparisons*
 	
 	similarity = ai.get_corpus_similarity(df1, df2)
-	 
-	 
