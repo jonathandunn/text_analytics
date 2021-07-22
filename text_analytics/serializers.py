@@ -26,7 +26,7 @@ class PhrasesSerializer(BaseSerializer):
     def serialize(self):
         return self.obj.export_phrases()
 
-    def deserealize(self):
+    def deserialize(self):
         return self.obj
 
 
@@ -35,23 +35,17 @@ class W2vEmbeddingSerializer(BaseSerializer):
     def serialize(self):
         return json.dumps(self.obj, cls=NumpyEncoder)
 
-    def deserealize(self):
+    def deserialize(self):
         return np.asarray(self.obj)
 
 
 class W2vVocabSerializer(BaseSerializer):
 
     def serialize(self):
-        res = {key: data.__dict__ for key, data in self.obj.items()}
-        return json.dumps(res)
+        return self.obj
 
-    def deseralize(self):
-        res = {}
-        for key, data in self.obj.items():
-            compat = CompatVocab(**data)
-            compat.count = data['count']
-            res[key] = compat
-        return res
+    def deserialize(self):
+        return self.obj
 
 
 class TfIdfSerializer(BaseSerializer):
@@ -68,7 +62,7 @@ class TfIdfSerializer(BaseSerializer):
                    "params": self.get_tfidf_params()}
         return json.dumps(payload, cls=NumpyEncoder)
 
-    def deserealize(self):
+    def deserialize(self):
         idfs = np.asarray(self.obj['idf'])
         vectorizer = TfidfVectorizer(**self.obj['params'])
         # Monkey patch in order to indirectly fit a tfidf vectorizer.
@@ -89,7 +83,7 @@ class LdaDictionarySerializer(BaseSerializer):
             data = saved_data.read()
         return json.dumps({"corpus": data}, ensure_ascii=False)
 
-    def deserealize(self):
+    def deserialize(self):
         temp_file = get_tmpfile('lda_dict_deserialize_tmp')
         with open(temp_file, 'w') as te:
             te.write(self.obj['corpus'])
@@ -99,14 +93,16 @@ class LdaDictionarySerializer(BaseSerializer):
 class LdaModelSerializer(BaseSerializer):
 
     def serialize(self):
-        return pickle.dump(self.obj)
+        return self.obj
 
-    def deserealize(self):
-        return pickle.load(self.obj)
+    def deserialize(self):
+        return self.obj
+        
 
 
 SERIALIZERS = {"phrases": PhrasesSerializer,
                "w2v_embedding": W2vEmbeddingSerializer,
                "w2v_vocab": W2vVocabSerializer,
                "tfidf_model": TfIdfSerializer,
-               "lda_model": LdaModelSerializer}
+               "lda_model": LdaModelSerializer,
+               "lda_dictionary": LdaDictionarySerializer}

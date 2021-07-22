@@ -50,6 +50,7 @@ class SerializerTester(unittest.TestCase):
         data = W2vVocabSerializer(fo).serialize()
         data2 = W2vVocabSerializer(data).deseralize()
 
+        
     def test_lda_dict(self):
         with open('text_analytics/tests/AI.State.Hotels.lda_dictionary3.pickle', 'rb') as f:
             fo = pickle.load(f)

@@ -1,17 +1,20 @@
 from gensim.parsing import preprocessing
 from collections import defaultdict
 import cleantext
+import pandas as pd
 import numpy as np
 import cytoolz as ct
 import re
 import json
 import spacy
+import multiprocessing as mp
+from functools import partial
 
 try:
     from settings import Settings
 except:
     from .settings import Settings
-
+    
 #Initialize the settings module
 settings = Settings()
 
@@ -28,7 +31,7 @@ def clean_web(line):
     line = line.replace(" RT", "").replace("RT ", "")
     return line
 
-def clean(line, phraser=None, nlp=None, stop = None):
+def clean(line, phraser=None, nlp=None, stop=None):
     """
     Pre-processing function that splits words, gets phrases, removes stopwords
     :param line:
@@ -36,7 +39,7 @@ def clean(line, phraser=None, nlp=None, stop = None):
     :param nlp:
     :return:
     """
-   #Use clean-text
+   #Use clean-text 
     line = cleantext.clean(line,
                     fix_unicode = True,
                     to_ascii = False,
@@ -50,50 +53,93 @@ def clean(line, phraser=None, nlp=None, stop = None):
                     no_currency_symbols = True,
                     no_punct = True,
                     replace_with_punct = "",
-                    replace_with_url = "<URL>",
-                    replace_with_email = "<EMAIL>",
-                    replace_with_phone_number = "<PHONE>",
-                    replace_with_number = "<NUMBER>",
+                    replace_with_url = "URL",
+                    replace_with_email = "EMAIL",
+                    replace_with_phone_number = "PHONE",
+                    replace_with_number = "NUMBER",
                     replace_with_digit = "0",
-                    replace_with_currency_symbol = "<CUR>"
+                    replace_with_currency_symbol = "CURRENCY"
                     ).split()
-
+    
     # If we've used PMI to find phrases, get those phrases now
     if phraser is not None:
         line = list(phraser[line])
 
+        
     # If we want Part-of-Speech tagging, do that now
-    if nlp:
+    if nlp is not None:
         line = nlp(" ".join(line))
         line = [w.text + "_" + w.pos_ for w in line]
+        
+    #Remove words (checking for possible pos tag)
+    if stop is not None:
+        line = [word for word in line if word[:word.rfind("_")] not in stop]
 
     return line
 
 
-def read_clean(df, nlp=None, column="Text"):
+def read_clean(df, phraser=None, stop=None, nlp=None, column="Text"):
     """
     Returns a list of cleaned strings from the dataframe
 
     :param df:
+    :param phraser:
+    :param stop:
     :param nlp:
     :param column:
     :return:
     """
-    return [clean(str(x), nlp=nlp) for x in df.loc[:, column].values]
     
-def stream_clean(df, nlp=None, column="Text"):
+    #In case we pass a filename instead of a loaded dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df)
+        
+    return [clean(line, phraser=phraser, stop=stop, nlp=nlp) for line in df.loc[:, column].values]
+    
+def process_stream(line, phraser=None, stop=None, nlp=None):
+    """
+    Multiprocess a list of lines if desired
+
+    :param lines:
+    :param phraser:
+    :param nlp:
+    :return:
+    """
+    if nlp is not None:
+        nlp = spacy.load("en_core_web_sm")
+        nlp.max_length = 99999999
+
+    return clean(line, phraser=phraser, stop=stop, nlp=nlp)
+    
+def stream_clean(df, phraser=None, stop=None, nlp=None, column="Text", workers=4):
     """
     Yields a list of cleaned strings from the dataframe; avoids holding everything in memory
 
     :param df:
     :param nlp:
     :param column:
+    :param workers:
     :return:
     """
-    for line in df.loc[:, column].values:
-        line = clean(str(line), nlp=nlp)
-        yield line
-
+    
+    #In case we pass a filename instead of a loaded dataframe
+    if isinstance(df, str):
+        for temp_df in pd.read_csv(df, iterator=True, chunksize=1000):
+            print(temp_df)
+            pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+            lines = pool_instance.map(partial(process_stream, phraser=phraser, stop=stop, nlp=nlp), temp_df.loc[:, column].values, chunksize = 25)
+            pool_instance.close()
+            pool_instance.join()
+            
+            for line in lines:
+                yield line
+        
+    #In case we pass a dataframe
+    else:
+        for line in df.loc[:, column].values:
+            line = clean(str(line), phraser=phraser, stop=stop, nlp=nlp)
+            yield line
+        
 def clean_pre(line):
     """
 
@@ -211,7 +257,7 @@ def line_to_index(line, max_size, word_vectors_vocab, nlp=None):
     return line_index
 
 
-def get_vocab(df):
+def get_vocab(df, phraser=None, stop=None, nlp=None):
     """
     Gets vocab
     :param df:
@@ -219,7 +265,7 @@ def get_vocab(df):
     """
     vocab = defaultdict(int)
 
-    for line in stream_clean(df):
+    for line in stream_clean(df, phraser=phraser, stop=stop, nlp=nlp):
         for word in line:
             vocab[word] += 1
     return vocab
@@ -233,4 +279,3 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
-

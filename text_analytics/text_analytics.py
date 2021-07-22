@@ -1,5 +1,6 @@
 #General imports
 from collections import defaultdict
+from functools import partial
 import warnings
 warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
 from gensim.corpora import Dictionary
@@ -18,9 +19,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder
 from scipy.spatial.distance import euclidean
 from scipy.sparse import isspmatrix
+from scipy.sparse import coo_matrix
 from matplotlib import pyplot as plt
 from wordcloud import WordCloud
 from stop_words import safe_get_stop_words
+from c2xg import C2xG
+from corpus_similarity import Similarity
 import spacy
 import tensorflow as tf
 import pandas as pd
@@ -29,6 +33,8 @@ import cytoolz as ct
 import pickle
 import logging
 import sys
+import json
+import codecs
 
 #Package-internal imports
 try:
@@ -45,6 +51,11 @@ try:
     from settings import Settings
 except:
     from .settings import Settings
+    
+try:
+    from serializers import PhrasesSerializer, W2vEmbeddingSerializer, W2vVocabSerializer, TfIdfSerializer, LdaModelSerializer, LdaDictionarySerializer
+except:
+    from .serializers import PhrasesSerializer, W2vEmbeddingSerializer, W2vVocabSerializer, TfIdfSerializer, LdaModelSerializer, LdaDictionarySerializer
     
 settings = Settings()
 
@@ -80,7 +91,7 @@ class TextAnalytics:
         self.positive_words = kwargs.get('positive_words') if kwargs.get('positive_words') else settings.POSITIVE_WORDS
         self.negative_words = kwargs.get('negative_words') if kwargs.get('negative_words') else settings.NEGATIVE_WORDS
 
-        self.stop_words = self.function_words + self.positive_words + self.negative_words
+        self.stop_words = self.function_words_single + self.positive_words + self.negative_words
         self.sentiment_words = self.positive_words + self.negative_words
 
         # Specific paths for the course labs
@@ -89,17 +100,63 @@ class TextAnalytics:
 
         self.loader = ExternalFileLoader(data_dir=self.data_dir, states_dir=self.states_dir)
         self.settings = Settings()
+                
+        self.serializers = {"phrases": PhrasesSerializer,
+               "w2v_embedding": W2vEmbeddingSerializer,
+               "w2v_vocab": W2vVocabSerializer,
+               "tfidf_model": TfIdfSerializer,
+               "lda_model": LdaModelSerializer,
+               "lda_dictionary": LdaDictionarySerializer}
+               
+    def serialize(self, data, type, name):
+    
+        serializer = self.serializers[type]
+        serialized = serializer(data).serialize()
+        
+        if type != "lda_model":
+            with codecs.open(name, "w", encoding = "utf-8") as f:
+                json.dump(serialized, f)
+        
+        elif type == "lda_model":
+            with open(name, "wb") as f:
+                pickle.dump(serialized, f)
+        
+        return
+        
+    def deserialize(self, type, name, language='en'):
+    
+        serializer = self.serializers[type]
+        
+        if type != "lda_model":
+            with codecs.open(name, "r", encoding = "utf-8") as f:
+                data = json.load(f)
+         
+        elif type == "lda_model":
+            with open(name, "rb") as f:
+                data = pickle.load(f)
+            
+        deserialized = serializer(data).deserialize()
+        
+        if type == "phrases":
+            if language == 'en':
+                common_terms = self.function_words_single
+            else:
+                common_terms = safe_get_stop_words(language)
 
-    def _get_vectotorizer(self, ngrams):
+            phrases = Phrases(delimiter="_", connector_words=common_terms)
+            phrases.phrasegrams = deserialized
+            deserialized = phrases        
+        
+        return deserialized
+        
+    def _get_vectorizer(self, ngrams, phraser=None, stop=None, nlp=None, vocab=None):
         return CountVectorizer(
             input="content",
             encoding="utf-8",
             decode_error="replace",
             ngram_range=ngrams,
-            preprocessor=clean_pre,
-            analyzer="word",
-            vocabulary=self.function_words,
-            tokenizer=None,
+            analyzer=partial(clean, phraser=phraser, stop=stop, nlp=nlp),
+            vocabulary=vocab,
         )
 
     def load_data(self, filename):
@@ -122,13 +179,13 @@ class TextAnalytics:
     @property
     def style_vectorizer(self):
         if not self._style_vectorizer:
-            self._style_vectorizer = self._get_vectotorizer((1, 2))
+            self._style_vectorizer = self._get_vectorizer(ngrams=(1, 2), vocab = self.function_words)
         return self._style_vectorizer
 
     @property
     def sentiment_vectorizer(self):
         if not self._sentiment_vectorizer:
-            self._sentiment_vectorizer = self._get_vectotorizer((1, 1))
+            self._sentiment_vectorizer = self._get_vectorizer(ngrams=(1, 1), vocab = self.sentiment_words)
         return self._sentiment_vectorizer
 
     @property
@@ -146,15 +203,16 @@ class TextAnalytics:
                                         )
         return self._wordcloud
 
-    def _get_vocab_list(self, df, min_count, language, return_freq = False):
+    def _get_vocab_list(self, df, n_features=None, min_count=1, language='en', return_freq=False):
         """
         Gets vocab list
         :param df:
         :param min_count:
         :param language:
+        :param return_freq:
         :return:
         """
-        vocab = get_vocab(df)
+        vocab = get_vocab(df, phraser=self.phrases)
 
         vocab_list = []
         
@@ -162,15 +220,19 @@ class TextAnalytics:
             return vocab
 
         if language == 'en':
-            for word in vocab:
-                if vocab[word] > min_count:
+            for word, freq in sorted(vocab.items(), key=lambda item: item[1]):
+               if freq > min_count:
                     if word not in self.function_words:
                         if word not in self.sentiment_words:
                             vocab_list.append(word)
         else:
-            for word in vocab:
-                if vocab[word] > min_count:
+            for word, freq in sorted(vocab.items(), key=lambda item: item[1]):
+                if freq > min_count:
                     vocab_list.append(word)
+        
+        if n_features is not None:
+            vocab_list = vocab_list[:n_features]
+
         return vocab_list
 
     def _get_wordcloud_frequency_vocab(self, df, stage):
@@ -245,6 +307,36 @@ class TextAnalytics:
         """
         with open("AI.State." + name + ".pickle", "wb") as f:
             pickle.dump(file_contents, f)
+            
+    def get_association(self, df, min_count=1, threshold=0.70, save_phraser=False, language='en'):
+    
+        cxg = C2xG(language = self.settings.MAP_THREE[language])
+        association_df = cxg.get_association(self.read(df), freq_threshold = min_count, smoothing = False, lex_only = True)
+        
+        if save_phraser == True:
+            if language == 'en':
+                common_terms = self.function_words_single
+            else:
+                common_terms = safe_get_stop_words(language)
+
+            phrasegrams = {}
+            for row in association_df.itertuples():
+                word = row[1] + "_" + row[2]
+                if row[3] > threshold:
+                    phrasegrams[word] = row[3]
+        
+            phrases = Phrases(delimiter="_", connector_words=common_terms, min_count=min_count, threshold=threshold)
+            phrases.phrasegrams = phrasegrams
+            self.phrases = phrases
+            
+        return association_df
+        
+    def get_corpus_similarity(self, df1, df2, language='en'):
+    
+        cs = Similarity(language = self.settings.MAP_THREE[language])
+        result = cs.calculate(self.read(df1), self.read(df2))
+        
+        return result
 
     def get_features(self, df, features="style"):
         """
@@ -263,7 +355,14 @@ class TextAnalytics:
         elif features == "sentiment":
             x = self.sentiment_vectorizer.transform(self.read(df))
             vocab_size = len(self.sentiment_vectorizer.vocabulary_.keys())
-
+            
+        # Constructions from the external C2xG package
+        elif features == "constructions":
+            cxg = C2xG(language = "eng")
+            x = cxg.parse_return(input = self.read(df), mode = "lines", workers = 1)
+            x = coo_matrix(x)
+            vocab_size = len(cxg.model)
+        
         # TF-IDF weighted content words, with PMI for phrases
         else:  # features == "content":
             x = self.tfidf_vectorizer.transform(self.read(df))
@@ -293,7 +392,7 @@ class TextAnalytics:
             test_df, val_df = train_test_split(test_df, test_size=0.50)
             return train_df, test_df, val_df
 
-    def fit_tfidf(self, df, min_count=None, language='ENG', force_phrases=False):
+    def fit_tfidf(self, df, n_features = 5000, min_count=1, language='en', force_phrases=False):
         """
         Go through a dataset to build a content word vocabulary, with TF-IDF weighting
         :param df:
@@ -310,15 +409,15 @@ class TextAnalytics:
         self.fit_phrases(df, min_count=min_count, language=language, force=force_phrases)
         ai_logger.debug("Finished finding phrases.")
 
-        vocab_list = self._get_vocab_list(df, min_count, language)
-
+        vocab_list = self._get_vocab_list(df, n_features, min_count, language)
+ 
         # Initialize TF-IDF Vectorizer
         self.tfidf_vectorizer = TfidfVectorizer(
             input="content",
             encoding="utf-8",
             decode_error="replace",
             ngram_range=(1, 1),
-            analyzer=clean,
+            analyzer=partial(clean, phraser=self.phrases),
             vocabulary=vocab_list,
             norm="l2",
             use_idf=True,
@@ -330,7 +429,7 @@ class TextAnalytics:
         ai_logger.debug("Fitting TF-IDF")
         self.tfidf_vectorizer.fit(raw_documents=self.read(df))
 
-    def _build_phrases(self, df, min_count, language='en'):
+    def _build_phrases(self, df, min_count = 1, language='en'):
 
         if language == 'en':
             common_terms = self.function_words_single
@@ -342,13 +441,14 @@ class TextAnalytics:
             min_count=min_count,
             threshold=0.70,
             scoring="npmi",
-            max_vocab_size=10000000,
+            max_vocab_size=20000000,
             delimiter="_",
             connector_words=common_terms
         )
-        self.phrases = phrases.freeze()
+        
+        self.phrases = phrases
 
-    def fit_phrases(self, df, min_count=100, language='en', force=False):
+    def fit_phrases(self, df, min_count=1, language='en', force=False):
         """
         Use PMI to learn what phrases and collocations should be treated as one word
         :param df:
@@ -363,20 +463,33 @@ class TextAnalytics:
 
     @staticmethod
     def _get_classifier(classifier):
-        obj_class = LinearSVC if classifier == 'svm' else LogisticRegression
-        return obj_class(
-            penalty="l2",
-            loss="squared_hinge",
-            dual=True,
-            tol=0.0001,
-            C=1.0,
-            multi_class="ovr",
-            fit_intercept=True,
-            intercept_scaling=1,
-            max_iter=200000
-        )
+       
+        if classifier == 'svm':
+            obj_class = LinearSVC(
+                            penalty="l2",
+                            loss="squared_hinge",
+                            tol=0.0001,
+                            C=1.0,
+                            multi_class="ovr",
+                            fit_intercept=True,
+                            intercept_scaling=1,
+                            max_iter=200000
+                            )
+        else:
+            obj_class = LogisticRegression(penalty='l2',
+                            tol=0.0001, 
+                            C=1.0, 
+                            fit_intercept=True, 
+                            intercept_scaling=1, 
+                            solver="lbfgs", 
+                            max_iter=200000, 
+                            multi_class="ovr", 
+                            n_jobs=1, 
+                            )
+        
+        return obj_class
 
-    def shallow_classification(self, df, labels, features="style", cv=False, classifier='svm'):
+    def shallow_classification(self, df, labels, features="style", cv=False, classifier='svm', x=None):
         """
         Train and test a Linear SVM classifier
         :param df:
@@ -432,7 +545,7 @@ class TextAnalytics:
 
         return result
 
-    def mlp(self, df, labels, features="style", validation_set=False, test_size=0.10):
+    def mlp(self, df, labels, features="style", validation_set=False, test_size=0.10, x=None):
         """
         Train and test a Multi-Layer Perceptron classifier (only works for non-binary classes)
 
@@ -444,8 +557,6 @@ class TextAnalytics:
         :param test_size:
         :return:
         """
-        # TODO: Added test size parameters
-        # TODO: Removed unused x kwarg.
         # Make train/test split
 
         val_df = None
@@ -487,17 +598,14 @@ class TextAnalytics:
         for units in [50, 50, 50]:
             model.add(tf.keras.layers.Dense(units, activation="relu"))
 
-        # TODO: Check this following lines.
         # Output layer. The first argument is the number of labels.
         # Its sigmoid when binary. if sigmoid n_labels = 1
         # Its softmax when multi class, leave n_labels alone.
         if n_labels == 1:
             model.add(tf.keras.layers.Dense(n_labels, activation="sigmoid"))
-            # TODO: Check this is the proper loss class.
             loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
         else:
             model.add(tf.keras.layers.Dense(n_labels, activation="softmax"))
-            # TODO: Check this is the proper loss class.
             loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
         # Compile model
@@ -510,7 +618,7 @@ class TextAnalytics:
         model.fit(x=train_x.todense(),
                   y=y_train,
                   validation_data=(test_x.todense(), y_test),
-                  epochs=25,
+                  epochs=10,
                   use_multiprocessing=True,
                   workers=5,
                   )
@@ -524,7 +632,6 @@ class TextAnalytics:
             val_y = labeler.inverse_transform(y_val)
 
         # Evaluate on held-out data; TensorFlow returns probabilities, not classes
-        # TODO: Check this following line.
         # if binary don't do argmax, just return the prediction
         if n_labels == 1:
             y_predict = model.predict(val_x.todense())
@@ -686,7 +793,7 @@ class TextAnalytics:
         cluster = KMeans(n_clusters=k,
                          init="k-means++",
                          n_init=10,
-                         max_iter=1000,
+                         max_iter=10000,
                          tol=0.0001,
                          copy_x=False,
                          algorithm="full")
@@ -695,8 +802,7 @@ class TextAnalytics:
         # Get cluster assignments
         clustering = cluster.fit_predict(X=x)
 
-        # TODO: Analyse this code block, why missing?
-        # Set a null y if necessary
+        # Set a null y if necessary; this allows us to cluster without known class labels
         try:
             test = y.shape
         except AttributeError:
@@ -716,7 +822,7 @@ class TextAnalytics:
     @staticmethod
     def linguistic_distance(x, y, sample=1, n=1):
         """
-        Manipulate linguistic distance using a KDTree
+        Manipulate linguistic distance to find the nearest examples
         :param x:
         :param y:
         :param sample:
@@ -762,7 +868,7 @@ class TextAnalytics:
 
         return y_sample, y_closest
 
-    def train_word2vec(self, df, min_count=None, workers=10, language='en'):
+    def train_word2vec(self, df, min_count=None, workers=1, language='en'):
         """
         Learn a word2vec embeddings from input data using gensim
 
@@ -778,13 +884,11 @@ class TextAnalytics:
         # If we haven' t learned phrases yet, do that now
         self.fit_phrases(df=df, min_count=min_count, language=language)
         
-         # This is a placeholder for spacy's tagger
-        nlp = spacy.load("en_core_web_sm")
-        nlp.max_length = 99999999
+        data = [x for x in stream_clean(df, phraser=self.phrases, nlp=True, workers = workers)]
 
         # Learn the word embeddings
         embeddings = Word2Vec(
-            sentences=read_clean(df, nlp=nlp),
+            sentences=data,
             vector_size=100,
             sg=1,
             window=4,
@@ -793,7 +897,7 @@ class TextAnalytics:
             min_count=min_count,
             epochs=10,
             workers=workers,
-            max_vocab_size=10000000,
+            max_vocab_size=20000000,
         )
 
         # Keep just the keyed vectors
@@ -809,7 +913,7 @@ class TextAnalytics:
         self.word_vectors = word_vectors
         self.word_vectors_vocab = vocab
 
-    def train_lda(self, df, n_topics, min_count=None):
+    def train_lda(self, df, n_topics, min_count=2):
         """
         Learn an LDA topic model from input data using gensim
         :param df:
@@ -817,11 +921,9 @@ class TextAnalytics:
         :param min_count:
         :return:
         """
-        # If no min_count, find one
-        if min_count is None:
-            min_count = self.get_min_count(df)
+        
 
-        cleaned_df = read_clean(df)
+        cleaned_df = read_clean(df, phraser=self.phrases)
         # Get gensim dictionary, remove function words and infrequent words
         common_dictionary = Dictionary(cleaned_df)
         common_dictionary.filter_extremes(no_below=min_count)
@@ -849,7 +951,7 @@ class TextAnalytics:
         :return:
         """
         # Get the gensim representation
-        cleaned_df = read_clean(df)
+        cleaned_df = read_clean(df, phraser=self.phrases)
         corpus = [self.lda_dictionary.doc2bow(text) for text in cleaned_df]
 
         # Get labels

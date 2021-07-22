@@ -13,6 +13,17 @@ class Settings(object):
         self.DATA_BUCKET = "https://textanalyticscorpus.s3.amazonaws.com"
         self.STATE_BUCKET = "https://textanalyticsmodels.s3.amazonaws.com"
         self.CHECKSUM_BASE_URL = "https://pfcymoupe2.execute-api.us-east-1.amazonaws.com/staging"
+        
+        self.MAP_TWO = {"amh":"am", "ara":"ar", "aze":"az", "ben":"bn", "bul":"bg", "cat":"ca", "ces":"cs",
+                        "dan":"da", "deu":"de", "ell":"el", "eng":"en", "est":"et", "eus":"eu", "fas":"fa", "fin":"fi",
+                        "fra":"fr", "gle":"ga", "glg":"gl", "guj":"gu", "hat":"ht", "hin":"hi", "hun":"hu", "ind":"id",
+                        "isl":"is", "ita":"it", "jpn":"ja", "kan":"kn", "kat":"ka", "kor":"ko", "lav":"lv", "lit":"lt",
+                        "mal":"ml", "mar":"mr", "mkd":"mk", "mlg":"mg", "mon":"mn", "nld":"nl", "nor":"no", "pan":"pa",
+                        "pol":"pl", "por":"pt", "ron":"ro", "rus":"ru", "sin":"si", "slk":"sk", "slv":"sl", "som":"so",
+                        "spa":"es", "sqi":"sq", "swe":"sv", "tam":"ta", "tel":"te", "tgl":"tl", "tha":"th", "tur":"tr",
+                        "ukr":"uk", "urd":"ur", "uzb":"uz", "vie":"vi", "zho":"zh"}
+                        
+        self.MAP_THREE = inv_map = {v: k for k, v in self.MAP_TWO.items()}
 
         self.FUNCTION_WORDS_SINGLE = ["the", "of", "and", "to", "a", "in", "i", "he", "that", "was", "it", "his", "you",
                                  "with", "as", "for", "had", "is", "her", "not", "but", "at", "on", "she", "be", "have",
