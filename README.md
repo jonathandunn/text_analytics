@@ -36,7 +36,7 @@ This package provides code to support introductory courses in computational ling
 	
 	ai.mlp(df, label, features="style", validation_set=False, test_size=0.10)
 	
-##Unsupervised methods
+## Unsupervised methods
 
 *Topic Models*
 
@@ -56,7 +56,7 @@ This package provides code to support introductory courses in computational ling
 	
 	 y_sample, y_closest = ai.linguistic_distance(x, y, sample=1, n=3)
 	 
-##Corpus Descriptions
+## Corpus Descriptions
 
 *PMI-based Phrases*
 	
