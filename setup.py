@@ -11,7 +11,7 @@ setup(
     version="1.0",
     author="Jonathan Dunn",
     author_email="jonathan.dunn@canterbury.ac.nz",
-    description="Basic text analytics and natural language processing in Python",
+    description="Basic computational linguistics and natural language processing in Python",
     license="GNU GENERAL PUBLIC LICENSE v3",
     url="https://github.com/jonathandunn/text_analytics",
     keywords="text analytics, natural language processing, computational linguistics",
