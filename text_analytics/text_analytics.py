@@ -1011,11 +1011,7 @@ class TextAnalytics:
         :param labels:
         :return:
         """
-        # TODO: Typing in this method is clunky, test it!
-        freqs = ct.frequencies(df.loc[:, labels])
-        for label in freqs:
-            ai_logger.debug(label, freqs[label])
-        return freqs
+        return ct.frequencies(df.loc[:, labels])
 
     @staticmethod
     def print_vector(vector, vectorizer):
