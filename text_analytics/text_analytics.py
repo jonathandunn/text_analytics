@@ -1,4 +1,5 @@
 #General imports
+from collections import Mapping
 from collections import defaultdict
 from functools import partial
 import warnings
@@ -203,7 +204,7 @@ class TextAnalytics:
                                         )
         return self._wordcloud
 
-    def _get_vocab_list(self, df, n_features=None, min_count=1, language='en', return_freq=False):
+    def _get_vocab_list(self, df, n_features=None, min_count=1, language='en', return_freq=False, vocab=None, workers=1):
         """
         Gets vocab list
         :param df:
@@ -212,7 +213,9 @@ class TextAnalytics:
         :param return_freq:
         :return:
         """
-        vocab = get_vocab(df, phraser=self.phrases)
+        
+        if not isinstance(vocab, Mapping):
+            vocab = get_vocab(df, phraser=self.phrases, workers=workers)
 
         vocab_list = []
         
@@ -220,13 +223,13 @@ class TextAnalytics:
             return vocab
 
         if language == 'en':
-            for word, freq in sorted(vocab.items(), key=lambda item: item[1]):
+            for word, freq in sorted(vocab.items(), key=lambda item: item[1], reverse=True):
                if freq > min_count:
                     if word not in self.function_words:
                         if word not in self.sentiment_words:
                             vocab_list.append(word)
         else:
-            for word, freq in sorted(vocab.items(), key=lambda item: item[1]):
+            for word, freq in sorted(vocab.items(), key=lambda item: item[1], reverse=True):
                 if freq > min_count:
                     vocab_list.append(word)
         
@@ -392,24 +395,21 @@ class TextAnalytics:
             test_df, val_df = train_test_split(test_df, test_size=0.50)
             return train_df, test_df, val_df
 
-    def fit_tfidf(self, df, n_features = 5000, min_count=1, language='en', force_phrases=False):
+    def fit_tfidf(self, df, n_features = 5000, min_count=1, language='en', force_phrases=False, vocab=None, workers=1):
         """
         Go through a dataset to build a content word vocabulary, with TF-IDF weighting
         :param df:
         :param min_count:
         :param language:
+        :param vocab:
         :return:
         """
-        # TODO: Added save phrases params for storing phrases in disk.
-        # If no min_count, find one
-        if min_count is None:
-            min_count = self.get_min_count(df)
 
         # Get multi-word expressions using PMI with gensim
         self.fit_phrases(df, min_count=min_count, language=language, force=force_phrases)
         ai_logger.debug("Finished finding phrases.")
 
-        vocab_list = self._get_vocab_list(df, n_features, min_count, language)
+        vocab_list = self._get_vocab_list(df, n_features, min_count, language, vocab=vocab, workers=workers)
  
         # Initialize TF-IDF Vectorizer
         self.tfidf_vectorizer = TfidfVectorizer(

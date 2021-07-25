@@ -261,19 +261,31 @@ def line_to_index(line, max_size, word_vectors_vocab, nlp=None):
     line_index = np.array(line_index)
 
     return line_index
+    
+def process_vocab(lines, phraser=None, stop=None, nlp=None):
 
+    vocab = defaultdict(int)
+    for line in lines:
+        for word in clean(line, phraser=phraser, stop=stop, nlp=nlp):
+            vocab[word] += 1
+            
+    return vocab
 
-def get_vocab(df, phraser=None, stop=None, nlp=None):
+def get_vocab(df, phraser=None, stop=None, nlp=None, column = "Text", workers = 1):
     """
     Gets vocab
     :param df:
     :return:
     """
-    vocab = defaultdict(int)
-
-    for line in stream_clean(df, phraser=phraser, stop=stop, nlp=nlp):
-        for word in line:
-            vocab[word] += 1
+    chunksize = int(len(df)/workers)
+    
+    pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+    vocab = pool_instance.map(partial(process_vocab, phraser=phraser, stop=stop, nlp=nlp), ct.partition(chunksize, df.loc[:, column].values), chunksize = 1)
+    pool_instance.close()
+    pool_instance.join()
+    
+    vocab = ct.merge_with(sum, vocab)
+              
     return vocab
 
 
