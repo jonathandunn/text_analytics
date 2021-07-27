@@ -18,6 +18,7 @@ from sklearn.metrics import adjusted_rand_score
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder
+from sklearn.dummy import DummyClassifier
 from scipy.spatial.distance import euclidean
 from scipy.sparse import isspmatrix
 from scipy.sparse import coo_matrix
@@ -94,6 +95,9 @@ class TextAnalytics:
 
         self.stop_words = self.function_words_single + self.positive_words + self.negative_words
         self.sentiment_words = self.positive_words + self.negative_words
+        
+        #Retain svm function from previous version
+        self.svm = partial(self.shallow_classification, classifier="svm")
 
         # Specific paths for the course labs
         self.data_dir = kwargs.get('data_dir') if kwargs.get('data_dir') else settings.DATA_DIR
@@ -489,7 +493,7 @@ class TextAnalytics:
         
         return obj_class
 
-    def shallow_classification(self, df, labels, features="style", cv=False, classifier='svm', x=None):
+    def shallow_classification(self, df, labels, features="style", cv=False, classifier='svm', baseline=False):
         """
         Train and test a Linear SVM classifier
         :param df:
@@ -522,7 +526,17 @@ class TextAnalytics:
             predictions = self.classifier.predict(test_x)
             report = classification_report(y_true=test_df.loc[:, labels].values, y_pred=predictions)
             ai_logger.debug(report)
-            result = report
+            
+            if baseline == False:
+                return report
+            
+            elif baseline == True:
+                base = DummyClassifier(strategy="most_frequent")
+                base.fit(X=train_x, y=train_df.loc[:, labels].values)
+                base_predictions = base.predict(test_df.loc[:, labels].values)
+                base_report = classification_report(y_true=test_df.loc[:, labels].values, y_pred=base_predictions)
+               
+                result = report, base_report
 
         # Use 10-fold cross-validation for evaluation method
         else:
@@ -545,7 +559,7 @@ class TextAnalytics:
 
         return result
 
-    def mlp(self, df, labels, features="style", validation_set=False, test_size=0.10, x=None):
+    def mlp(self, df, labels, features="style", validation_set=False, test_size=0.10, x=None, baseline=False, layers=[100,100,100], epochs=25):
         """
         Train and test a Multi-Layer Perceptron classifier (only works for non-binary classes)
 
@@ -571,6 +585,10 @@ class TextAnalytics:
 
         # Find the number of classes
         n_labels = len(list(set(train_df.loc[:, labels].values)))
+        
+        #Binary classification needs one label
+        if n_labels == 2:
+            n_labels = 1
 
         # TensorFlow requires one-hot encoded labels (not strings)
         labeler = LabelEncoder()
@@ -595,7 +613,7 @@ class TextAnalytics:
         model.add(tf.keras.Input(shape=(vocab_size,)))
 
         # One or more dense layers.
-        for units in [50, 50, 50]:
+        for units in layers:
             model.add(tf.keras.layers.Dense(units, activation="relu"))
 
         # Output layer. The first argument is the number of labels.
@@ -618,7 +636,7 @@ class TextAnalytics:
         model.fit(x=train_x.todense(),
                   y=y_train,
                   validation_data=(test_x.todense(), y_test),
-                  epochs=10,
+                  epochs=epochs,
                   use_multiprocessing=True,
                   workers=5,
                   )
@@ -635,18 +653,33 @@ class TextAnalytics:
         # if binary don't do argmax, just return the prediction
         if n_labels == 1:
             y_predict = model.predict(val_x.todense())
+            y_predict = [0 if x < 0.5 else 1 for x in y_predict]
+            y_predict = labeler.inverse_transform(y_predict)
+
         else:
             y_predict = np.argmax(model.predict(val_x.todense()), axis=-1)
-
-        # Turn classes into string labels
-        y_predict = labeler.inverse_transform(y_predict)
-
+            y_predict = labeler.inverse_transform(y_predict)
+        
         # Get evaluation report
         report = classification_report(y_true=val_y, y_pred=y_predict)
         ai_logger.debug(report)
 
         # Save to class object
         self.model = model
+        
+        if baseline == False:
+            return report
+            
+        elif baseline == True:
+            base = DummyClassifier(strategy="most_frequent")
+            base.fit(X=train_x, y=y_train)
+            base_predictions = base.predict(val_y)
+ 
+            # Turn classes into string labels
+            base_predictions = labeler.inverse_transform(base_predictions)
+            base_report = classification_report(y_true=val_y, y_pred=base_predictions)
+
+            return report, base_report
 
     def df_to_index(self, df):
         """
