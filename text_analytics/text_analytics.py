@@ -17,6 +17,7 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import adjusted_rand_score
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 from sklearn.dummy import DummyClassifier
 from scipy.spatial.distance import euclidean
@@ -492,7 +493,66 @@ class TextAnalytics:
                             )
         
         return obj_class
+        
+    def _positional_vector(self, df):
+    
+        x_vectors = []
+        y_vector = []
 
+        #Iterate over sentences to keep sentence boundaries intact
+        for sentence, sentence_df in df.groupby("Sentence_ID"):
+            
+            #A list of words and a list of ground-truth labels
+            words = sentence_df.loc[:,"Word"].values
+            tags = sentence_df.loc[:,"POS"].values
+            
+            #Create a positional vector for each word in the sentence
+            for i in range(len(words)):
+                y_vector.append(tags[i])
+                vector = []
+                
+                #Find the correct context window, filling in slots at the edges
+                for j in [-2, -1, 0, 1, 2]:
+                    if i+j < 0 or i+j > len(words)-1:
+                        vector.append("#")
+                    else:
+                        vector.append(words[i+j])
+                        
+                #Save the positional vector for this word
+                x_vectors.append(vector)
+
+        #With all sentences finished, conert into numpy array
+        x_vectors = np.array(x_vectors)
+        y_vector = np.array(y_vector)
+
+        #Convert into a one-hot encoding
+        encoder = OneHotEncoder(categories='auto', handle_unknown='ignore')
+        encoder.fit(x_vectors)
+        self.positional_encoder = encoder
+        
+        #Return the x and y vectors
+        x_vectors = encoder.transform(x_vectors)
+        
+        return x_vectors, y_vector
+
+    def pos_tagger(self, df, classifier="lm"):
+    
+        #Fit and transform the position encoder
+        x, y = self._positional_vector(df)
+        
+        # Initialize the classifier
+        self.classifier = self._get_classifier(classifier)
+        
+        #Get train/test split
+        train_x, test_x, train_y, test_y = train_test_split(x, y, test_size = 0.10)
+        self.classifier.fit(X=train_x, y=train_y)
+
+        # Evaluate on test data
+        predictions = self.classifier.predict(test_x)
+        report = classification_report(y_true=test_y, y_pred=predictions)
+
+        return report
+        
     def shallow_classification(self, df, labels, features="style", cv=False, classifier='svm', baseline=False):
         """
         Train and test a Linear SVM classifier
@@ -615,6 +675,7 @@ class TextAnalytics:
         # One or more dense layers.
         for units in layers:
             model.add(tf.keras.layers.Dense(units, activation="relu"))
+            model.add(tf.keras.layers.Dropout(.2, input_shape=(units,)))
 
         # Output layer. The first argument is the number of labels.
         # Its sigmoid when binary. if sigmoid n_labels = 1
@@ -1059,7 +1120,7 @@ class TextAnalytics:
         vector = pd.DataFrame(vector.todense()[0], columns=columns).T
         return vector
 
-    def unmasking(self, df, labels, features):
+    def unmasking(self, df, labels, features, classifier="lr"):
         """
         Transform a sparse vector into a series with word labels
         :param df:
@@ -1083,17 +1144,7 @@ class TextAnalytics:
         for i in range(0, 100):
 
             # Initialize the classifier
-            cls = LinearSVC(
-                penalty="l2",
-                loss="squared_hinge",
-                dual=True,
-                tol=0.0001,
-                C=1.0,
-                multi_class="ovr",
-                fit_intercept=True,
-                intercept_scaling=1,
-                max_iter=200000
-            )
+            cls = self._get_classifier(classifier)
 
             # Train and save classifier
             cls.fit(X=train_x, y=train_df.loc[:, labels].values)
