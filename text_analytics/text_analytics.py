@@ -341,7 +341,10 @@ class TextAnalytics:
         
     def get_corpus_similarity(self, df1, df2, language='en'):
     
-        cs = Similarity(language = self.settings.MAP_THREE[language])
+        if len(language) == 2:
+            language = self.settings.MAP_THREE[language]
+            
+        cs = Similarity(language = language)
         result = cs.calculate(self.read(df1), self.read(df2))
         
         return result
