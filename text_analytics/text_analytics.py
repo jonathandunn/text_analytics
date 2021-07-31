@@ -39,6 +39,12 @@ import sys
 import json
 import codecs
 
+try:
+    from sklearnex import patch_sklearn
+    patch_sklearn()
+except:
+    pass
+
 #Package-internal imports
 try:
     from helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab, stream_clean
@@ -344,8 +350,14 @@ class TextAnalytics:
         if len(language) == 2:
             language = self.settings.MAP_THREE[language]
             
+        if not isinstance(df1, list):
+            df1=self.read(df1)
+        
+        if not isinstance(df2, list):
+            df2=self.read(df2)
+            
         cs = Similarity(language = language)
-        result = cs.calculate(self.read(df1), self.read(df2))
+        result = cs.calculate(df1, df2)
         
         return result
 
@@ -481,7 +493,7 @@ class TextAnalytics:
                             multi_class="ovr",
                             fit_intercept=True,
                             intercept_scaling=1,
-                            max_iter=200000
+                            max_iter=2000000
                             )
         else:
             obj_class = LogisticRegression(penalty='l2',
@@ -490,7 +502,7 @@ class TextAnalytics:
                             fit_intercept=True, 
                             intercept_scaling=1, 
                             solver="lbfgs", 
-                            max_iter=200000, 
+                            max_iter=2000000, 
                             multi_class="ovr", 
                             n_jobs=1, 
                             )
