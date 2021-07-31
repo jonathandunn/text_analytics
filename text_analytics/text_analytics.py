@@ -39,12 +39,6 @@ import sys
 import json
 import codecs
 
-try:
-    from sklearnex import patch_sklearn
-    patch_sklearn()
-except:
-    pass
-
 #Package-internal imports
 try:
     from helpers import clean, read_clean, clean_pre, clean_wordclouds, line_to_index, get_vocab, stream_clean
@@ -99,7 +93,7 @@ class TextAnalytics:
         self.function_words = kwargs.get('function_words') if kwargs.get('function_words') else settings.FUNCTION_WORDS
         self.positive_words = kwargs.get('positive_words') if kwargs.get('positive_words') else settings.POSITIVE_WORDS
         self.negative_words = kwargs.get('negative_words') if kwargs.get('negative_words') else settings.NEGATIVE_WORDS
-
+        self.speed_up = kwargs.get('speed_up') if kwargs.get('speed_up') else False
         self.stop_words = self.function_words_single + self.positive_words + self.negative_words
         self.sentiment_words = self.positive_words + self.negative_words
         
@@ -112,6 +106,14 @@ class TextAnalytics:
 
         self.loader = ExternalFileLoader(data_dir=self.data_dir, states_dir=self.states_dir)
         self.settings = Settings()
+        
+        #Use Intel Sklearn Speed-Up (will increase memory)
+        if self.speed_up == True:
+            try:
+                from sklearnex import patch_sklearn
+                patch_sklearn()
+            except:
+                pass
                 
         self.serializers = {"phrases": PhrasesSerializer,
                "w2v_embedding": W2vEmbeddingSerializer,
