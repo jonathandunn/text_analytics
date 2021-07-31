@@ -345,7 +345,7 @@ class TextAnalytics:
             
         return association_df
         
-    def get_corpus_similarity(self, df1, df2, language='en'):
+    def get_corpus_similarity(self, df1, df2, language="en", feature_source="in"):
     
         if len(language) == 2:
             language = self.settings.MAP_THREE[language]
@@ -356,7 +356,7 @@ class TextAnalytics:
         if not isinstance(df2, list):
             df2=self.read(df2)
             
-        cs = Similarity(language = language)
+        cs = Similarity(language = language, feature_source = feature_source)
         result = cs.calculate(df1, df2)
         
         return result
