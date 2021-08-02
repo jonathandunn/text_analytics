@@ -21,6 +21,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 from sklearn.dummy import DummyClassifier
 from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import cosine
 from scipy.sparse import isspmatrix
 from scipy.sparse import coo_matrix
 from matplotlib import pyplot as plt
@@ -882,7 +883,7 @@ class TextAnalytics:
         self._plot_wordcloud(stage, name)
 
     @staticmethod
-    def cluster(x, y="Missing", k=None, ari=True):
+    def cluster(x, y="Missing", k=None, ari=False):
         """
         Use K-Means clustering
         :param x:
@@ -931,7 +932,7 @@ class TextAnalytics:
             return cluster_df
 
     @staticmethod
-    def linguistic_distance(x, y, sample=1, n=1):
+    def linguistic_distance(x, y, sample=1, n=1, metric="euclidean"):
         """
         Manipulate linguistic distance to find the nearest examples
         :param x:
@@ -961,7 +962,10 @@ class TextAnalytics:
                     x_test = x_test.todense()
 
                 # Calculate distance
-                distance = euclidean(x_sample, x_test)
+                if metric == "euclidean":
+                    distance = euclidean(x_sample, x_test)
+                else:
+                    distance = cosine(x_sample, x_test)
 
                 # Add index and distance
                 holder.append([i, distance])
