@@ -983,7 +983,7 @@ class TextAnalytics:
 
         return y_sample, y_closest
 
-    def train_word2vec(self, df, min_count=None, workers=1, language='en'):
+    def train_word2vec(self, df, min_count=None, workers=1, language='en', nlp=None):
         """
         Learn a word2vec embeddings from input data using gensim
 
@@ -999,8 +999,9 @@ class TextAnalytics:
         # If we haven' t learned phrases yet, do that now
         self.fit_phrases(df=df, min_count=min_count, language=language)
         
-        data = [x for x in stream_clean(df, phraser=self.phrases, nlp=True, workers = workers)]
-
+        #If we want to pos tag, save the results to save time (high memory)
+        data = [x for x in stream_clean(df, phraser=self.phrases, nlp=nlp)]
+            
         # Learn the word embeddings
         embeddings = Word2Vec(
             sentences=data,

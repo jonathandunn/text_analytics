@@ -111,14 +111,13 @@ def process_stream(line, phraser=None, stop=None, nlp=None):
 
     return clean(line, phraser=phraser, stop=stop, nlp=nlp)
     
-def stream_clean(df, phraser=None, stop=None, nlp=None, column="Text", workers=4):
+def stream_clean(df, phraser=None, stop=None, nlp=None, column="Text"):
     """
     Yields a list of cleaned strings from the dataframe; avoids holding everything in memory
 
     :param df:
     :param nlp:
     :param column:
-    :param workers:
     :return:
     """
     if nlp is not None:
@@ -132,14 +131,6 @@ def stream_clean(df, phraser=None, stop=None, nlp=None, column="Text", workers=4
             for line in temp_df.loc[:,column].values:
                 yield clean(line, phraser=phraser, stop=stop, nlp=nlp)
             
-            # pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
-            # lines = pool_instance.map(partial(process_stream, phraser=phraser, stop=stop, nlp=nlp), temp_df.loc[:, column].values, chunksize = 25)
-            # pool_instance.close()
-            # pool_instance.join()
-            
-            # for line in lines:
-                # yield line
-        
     #In case we pass a dataframe
     else:
         for line in df.loc[:, column].values:
