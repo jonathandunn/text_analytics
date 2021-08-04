@@ -1029,7 +1029,7 @@ class TextAnalytics:
         self.word_vectors = word_vectors
         self.word_vectors_vocab = vocab
 
-    def train_lda(self, df, n_topics, min_count=2):
+    def train_lda(self, df, n_topics, min_count=2, labels=None, tag=False):
         """
         Learn an LDA topic model from input data using gensim
         :param df:
@@ -1038,40 +1038,54 @@ class TextAnalytics:
         :return:
         """
         
-
-        cleaned_df = read_clean(df, phraser=self.phrases)
+        #Save class labels if necessary
+        if labels != None:
+            y = df.loc[:, labels].values
+        
+        #Clean and find phrases
+        df = read_clean(df, phraser=self.phrases)
+        
         # Get gensim dictionary, remove function words and infrequent words
-        common_dictionary = Dictionary(cleaned_df)
+        common_dictionary = Dictionary(df)
         common_dictionary.filter_extremes(no_below=min_count)
         remove_ids = [common_dictionary.token2id[x] for x in self.function_words_single if
                       x in common_dictionary.token2id]
 
         # Filter out words we don't want
         common_dictionary.filter_tokens(bad_ids=remove_ids)
-        common_corpus = [common_dictionary.doc2bow(text) for text in cleaned_df]
+        common_corpus = [common_dictionary.doc2bow(text) for text in df]
 
         # Train LDA
-        lda = LdaModel(common_corpus, num_topics=n_topics)
+        lda = LdaModel(common_corpus, 
+                        num_topics=n_topics,
+                        distributed=True,
+                        passes=10,
+                        iterations=10,
+                        )
 
         # Save to class
         self.lda = lda
         self.lda_dictionary = common_dictionary
         ai_logger.debug("Done learning LDA model")
+        
+        #If necessary, annotate the corpus as well
+        if tag==True:
+            tag_df = self.use_lda(df, y, cleaned=True)
+            return tag_df
 
-    def use_lda(self, df, labels):
+    def use_lda(self, df, y, cleaned=False):
         """
         Get a fixed minimum frequency threshold based on the size of the current data set
 
         :param df:
-        :param labels:
+        :param y:
         :return:
         """
         # Get the gensim representation
-        cleaned_df = read_clean(df, phraser=self.phrases)
-        corpus = [self.lda_dictionary.doc2bow(text) for text in cleaned_df]
-
-        # Get labels
-        y = df.loc[:, labels].values
+        if cleaned==False:
+            df = read_clean(df, phraser=self.phrases)
+            
+        corpus = [self.lda_dictionary.doc2bow(text) for text in df]
 
         # For storing topic results
         holder = []
