@@ -499,7 +499,7 @@ class TextAnalytics:
                             max_iter=2000000
                             )
         else:
-            obj_class = LogisticRegression(penalty='l2',
+            obj_class = LogisticRegression(penalty="l2",
                             tol=0.0001, 
                             C=1.0, 
                             fit_intercept=True, 
@@ -1058,7 +1058,7 @@ class TextAnalytics:
         # Train LDA
         lda = LdaModel(common_corpus, 
                         num_topics=n_topics,
-                        distributed=True,
+                        distributed=False,
                         passes=10,
                         iterations=10,
                         )
@@ -1180,7 +1180,16 @@ class TextAnalytics:
         for i in range(0, 100):
 
             # Initialize the classifier
-            cls = self._get_classifier(classifier)
+            cls = LinearSVC(
+                            penalty="l2",
+                            loss="squared_hinge",
+                            tol=0.0001,
+                            C=1.0,
+                            multi_class="ovr",
+                            fit_intercept=True,
+                            intercept_scaling=1,
+                            max_iter=2000000
+                            )
 
             # Train and save classifier
             cls.fit(X=train_x, y=train_df.loc[:, labels].values)
