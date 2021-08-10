@@ -7,7 +7,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name="text_analytics",
+    name="textanalytics",
     version="1.1",
     author="Jonathan Dunn",
     author_email="jonathan.dunn@canterbury.ac.nz",
