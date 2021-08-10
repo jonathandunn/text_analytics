@@ -22,7 +22,7 @@ setup(
                       "numpy",
                       "pandas",
                       "scipy",
-                      "sklearn>=0.24.0",
+                      "scikit-learn>=0.24.0",
                       "tensorflow>=2.0",
                       "spacy>=3.0",
                       "wordcloud",
