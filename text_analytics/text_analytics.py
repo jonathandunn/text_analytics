@@ -760,55 +760,58 @@ class TextAnalytics:
 
             return report, base_report
 
-    def df_to_index(self, df):
+    def df_to_index(self, df, max_size = 100):
         """
         Get embedding indexes for whole dataframe
         :param df:
         :return:
         """
-        x = np.array([line_to_index(line, self.max_size, self.word_vectors_vocab, self._nlp)
+        x = np.array([line_to_index(line, max_size, self.word_vectors_vocab, self.phrases, self._nlp)
                       for line in df.loc[:, "Text"].values])
+
         return x
 
-    def _make_sequential_model(self):
+    def _make_sequential_model(self, n_labels, layers = [100, 100], embedding_size = 100, max_size = 100):
+        
+        #Initialize
         model = tf.keras.Sequential()
-
-        # Create a tensorflow layer from our word2vec embeddings
+        
         embedding_layer = tf.keras.layers.Embedding(input_dim=self.word_vectors.shape[0],
                                                     output_dim=self.word_vectors.shape[1],
                                                     weights=[self.word_vectors],
-                                                    input_length=self.max_size,
+                                                    input_length=max_size,
                                                     )
-
-        # Add embedding layer as first layer in model
+        
         model.add(embedding_layer)
 
-        # The embedding layer needs to be flattened to fit into an MLP
+        # # The embedding layer needs to be flattened to fit into an MLP
         model.add(tf.keras.layers.Flatten())
-
-        # One or more dense layers
-        for units in [500, 500, 500]:
+        
+        # add layers to the model
+        for units in layers:
+            
+            # One or more dense layers
             add_layer = tf.keras.layers.Dense(units, activation="relu")
             model.add(add_layer)
 
-        # Drop out layer, avoid over-fitting
-        dropout_layer = tf.keras.layers.Dropout(0.2)
-        model.add(dropout_layer)
+            # Drop out layer, avoid over-fitting
+            dropout_layer = tf.keras.layers.Dropout(.2, input_shape=(units,))
+            model.add(dropout_layer)
 
         # Output layer. The first argument is the number of labels
-        output_layer = tf.keras.layers.Dense(1, activation="sigmoid")
+        output_layer = tf.keras.layers.Dense(n_labels, activation="softmax")
         model.add(output_layer)
 
         # Compile model
         model.compile(optimizer="adam",
-                      loss=tf.keras.losses.BinaryCrossentropy(),
-                      metrics=["accuracy"]
-                      )
+                      loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                      metrics=["accuracy"])
+                      
         return model
 
-    def mlp_embeddings(self, df, labels, x, model=None):
+    def mlp_embeddings(self, df, labels, layers = [100, 100], max_size = 100, embedding_size = 100, model=None):
         """
-        A Multi-layer perceptron with embeddings as input (only works for binary classes)
+        A Multi-layer perceptron with embeddings as input (only works for nonbinary classes)
 
         :param df:
         :param labels:
@@ -820,29 +823,30 @@ class TextAnalytics:
         labeler = LabelEncoder()
         y = df.loc[:, labels].values.reshape(-1, 1)
         y = labeler.fit_transform(y)
-
+        
+        #Convert input texts into a list of embedding indexes
+        x = self.df_to_index(df, max_size)
+        
         # Get train/test split
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.10)
 
         # Find the number of classes
-        # TODO: This variable is never used, what do we do?
         n_labels = len(list(set(df.loc[:, labels].values)))
-
+        
         # If there's no model already, make one
         if not model:
-            model = self._make_sequential_model()
+            model = self._make_sequential_model(n_labels, layers, max_size=max_size, embedding_size=embedding_size)
 
         # Now, begin or resume training
         model.fit(x=x_train,
                   y=y_train,
                   validation_data=(x_test, y_test),
-                  epochs=25,
+                  epochs=50,
                   use_multiprocessing=True,
                   )
 
         # Evaluate on held-out data; TensorFlow returns a sigmoid function, not classes
-        y_predict = model.predict(x_test)
-        y_predict = (y_predict[:, 0] > 0.5).astype(np.int32)
+        y_predict = np.argmax(model.predict(x_test), axis=-1)
 
         # Turn classes into string labels
         y_predict = labeler.inverse_transform(y_predict)
@@ -852,7 +856,50 @@ class TextAnalytics:
         report = classification_report(y_true=y_test, y_pred=y_predict)
         ai_logger.debug(report)
 
-        return model
+        return report
+        
+    def shallow_embeddings(self, df, labels, max_size = 100, model=None):
+        """
+        A Multi-layer perceptron with embeddings as input (only works for nonbinary classes)
+
+        :param df:
+        :param labels:
+        :param x:
+        :param model:
+        :return:
+        """
+        # TensorFlow requires encoded labels (not strings)
+        y = df.loc[:, labels].values
+        
+        #Convert input texts into a list of embedding indexes
+        x = self.df_to_index(df, max_size)
+        
+        #Get the embeddings for each word (cbow)
+        new_x = []
+        for i in x:
+            i = np.array([self.word_vectors[j] for j in i]).ravel()
+            new_x.append(i)
+            
+        #Make a new x array
+        x = np.array(new_x)
+        del new_x
+        
+        # Get train/test split
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.10)
+        
+        # If there's no model already, make one
+        if not model:
+            model = self._get_classifier(classifier="lr")
+
+        # Train and save classifier
+        model.fit(X=x_train, y=y_train)
+
+        # Evaluate on test data
+        predictions = model.predict(x_test)
+        report = classification_report(y_true=y_test, y_pred=predictions)
+        ai_logger.debug(report)
+
+        return report
 
     def wordclouds(self, df, stage=0, features="frequency", name=None, stopwords=None):
         """
@@ -1180,16 +1227,7 @@ class TextAnalytics:
         for i in range(0, 100):
 
             # Initialize the classifier
-            cls = LinearSVC(
-                            penalty="l2",
-                            loss="squared_hinge",
-                            tol=0.0001,
-                            C=1.0,
-                            multi_class="ovr",
-                            fit_intercept=True,
-                            intercept_scaling=1,
-                            max_iter=2000000
-                            )
+            cls = self._get_classifier(classifier)
 
             # Train and save classifier
             cls.fit(X=train_x, y=train_df.loc[:, labels].values)

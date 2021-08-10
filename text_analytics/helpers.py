@@ -224,7 +224,7 @@ def clean_wordclouds(line, function_words_single, stage=1, phrases=None):
     return line
 
 
-def line_to_index(line, max_size, word_vectors_vocab, nlp=None):
+def line_to_index(line, max_size, word_vectors_vocab, phrases=None, nlp=None):
     """
     Go from the input line to a list of word2vec indexes
     :param line:
@@ -234,24 +234,18 @@ def line_to_index(line, max_size, word_vectors_vocab, nlp=None):
     """
     # Get an empty list for indexes, clean the line, and prune to max size
     line_index = []
-    line = clean(line, nlp=nlp)
+    line = clean(line, phraser=phrases, nlp=nlp)
     line = line[:max_size]
 
     # Get the embedding index for each word
     for word in line:
-        try:
-            line_index.append(word_vectors_vocab[word].index)
-            # TODO: What exception can arise here?
-        except Exception:
-            pass
+        line_index.append(word_vectors_vocab.get(word, 0))
 
     # We need each speech to have the same dimensions, so we might need to add padding
     while len(line_index) < max_size:
         line_index.append(0)
 
-    line_index = np.array(line_index)
-
-    return line_index
+    return np.array(line_index)
     
 def process_vocab(lines, phraser=None, stop=None, nlp=None):
 

@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name="text_analytics",
-    version="1.0",
+    version="1.1",
     author="Jonathan Dunn",
     author_email="jonathan.dunn@canterbury.ac.nz",
     description="Basic computational linguistics and natural language processing in Python",
@@ -30,7 +30,6 @@ setup(
                       "seaborn",
                       "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.0.0/en_core_web_sm-2.0.0.tar.gz",
                       "requests",
-                      "dropbox",
                       "stop-words",
                       "boto3",
                       "tqdm",
