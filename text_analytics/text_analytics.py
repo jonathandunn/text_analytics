@@ -65,7 +65,7 @@ settings = Settings()
 
 # TODO: Set logging for educational purposes.
 ai_logger = logging.getLogger()
-ai_logger.setLevel(logging.DEBUG)
+ai_logger.setLevel(logging.ERROR)
 stdout_handler = logging.StreamHandler(sys.stdout)
 ai_logger.addHandler(stdout_handler)
 
