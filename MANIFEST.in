@@ -1,0 +1,7 @@
+include LICENSE
+include README.md
+include setup.py
+include setup.cfg
+include MANIFEST.in
+
+graft text_analytics/*
