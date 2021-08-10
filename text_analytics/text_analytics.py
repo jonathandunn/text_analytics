@@ -700,10 +700,10 @@ class TextAnalytics:
         # Its softmax when multi class, leave n_labels alone.
         if n_labels == 1:
             model.add(tf.keras.layers.Dense(n_labels, activation="sigmoid"))
-            loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+            loss = tf.keras.losses.BinaryCrossentropy()
         else:
             model.add(tf.keras.layers.Dense(n_labels, activation="softmax"))
-            loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+            loss = tf.keras.losses.SparseCategoricalCrossentropy()
 
         # Compile model
         model.compile(optimizer="adam",
