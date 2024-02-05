@@ -1,5 +1,5 @@
 #General imports
-from collections.abc import Mapping
+from collections.abc import MappingTEST
 from collections import defaultdict
 from functools import partial
 import warnings
